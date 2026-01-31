@@ -1,0 +1,158 @@
+# DEparrow Compute Node Configuration
+# This configuration is designed for Alpine Linux nodes that auto-join the DEparrow network
+
+node:
+  type: compute
+  # Node identity from environment or generated
+  id: "${NODE_ID}"
+  labels:
+    platform: "deparrow"
+    layer: "alpine"
+    arch: "${NODE_ARCH}"
+    role: "compute"
+
+compute:
+  # Resource limits and allocation
+  capacity:
+    # Use detected resources or environment variables
+    defaultJobResourceLimits:
+      cpu: "${NODE_CPU:-4}"
+      memory: "${NODE_MEMORY:-4Gi}"
+      disk: "${NODE_DISK:-20Gi}"
+      gpu: "${NODE_GPU:-0}"
+    
+    # Node resource constraints
+    totalResourceLimits:
+      cpu: "${NODE_CPU:-4}"
+      memory: "${NODE_MEMORY:-4Gi}"
+      disk: "${NODE_DISK:-20Gi}"
+      gpu: "${NODE_GPU:-0}"
+  
+  # Job execution settings
+  jobExecutionTimeout: "24h"
+  resultStatusBackoff: "1s"
+  maxJobRetries: 3
+
+# DEparrow bootstrap configuration
+deparrow:
+  bootstrap:
+    # Bootstrap server address
+    endpoint: "${DEPARROW_BOOTSTRAP:-https://bootstrap.deparrow.net}"
+    api_key: "${DEPARROW_API_KEY}"
+    
+    # Auto-join settings
+    auto_join: true
+    heartbeat_interval: "30s"
+    registration_retry: "5s"
+  
+  # Credit system integration
+  credit_system:
+    enabled: true
+    earning_rate: 0.1  # credits per CPU-hour
+    min_heartbeat_interval: "1m"
+    
+  # Node metadata
+  node_info:
+    public_key: "${NODE_PUBLIC_KEY}"
+    private_key: "${NODE_PRIVATE_KEY}"
+    arch: "${NODE_ARCH:-$(uname -m)}"
+    resources:
+      cpu: "${NODE_CPU:-$(nproc)}"
+      memory: "${NODE_MEMORY:-$(free -h | awk '/^Mem:/ {print $2}')}"
+      disk: "${NODE_DISK:-$(df -h / | awk 'NR==2 {print $2}')}"
+      gpu: "${NODE_GPU:-0}"
+    
+  # Health monitoring
+  health:
+    check_interval: "30s"
+    failure_threshold: 3
+    recovery_action: "restart"
+
+# NATS configuration for DEparrow network
+nats:
+  port: 4222
+  cluster:
+    name: "deparrow-cluster"
+    routes:
+      - "${DEPARROW_BOOTSTRAP_NATS:-nats://bootstrap.deparrow.net:4222}"
+  
+  jetstream:
+    enabled: true
+    storeDir: "/var/lib/bacalhau/nats/jetstream"
+    maxMemoryStore: "1GB"
+    maxFileStore: "10GB"
+
+# Logging configuration
+logging:
+  level: "info"
+  format: "json"
+  output: "stdout"
+  
+  # File logging
+  file:
+    enabled: true
+    path: "/var/log/deparrow/bacalhau.log"
+    max_size: "100MB"
+    max_backups: 5
+    max_age: 28
+
+# Storage configuration
+storage:
+  type: "local"
+  path: "/var/lib/deparrow/jobs"
+  
+  # Cleanup settings
+  cleanup:
+    enabled: true
+    max_age: "7d"
+    disk_threshold: "80%"
+
+# Security settings
+security:
+  tls:
+    enabled: true
+    cert_file: "/etc/deparrow/tls/cert.pem"
+    key_file: "/etc/deparrow/tls/key.pem"
+  
+  # Node authentication
+  auth:
+    enabled: true
+    jwt_secret: "${DEPARROW_JWT_SECRET}"
+    token_expiry: "24h"
+
+# Observability
+observability:
+  tracing:
+    enabled: true
+    exporter: "otlp"
+    endpoint: "${DEPARROW_OTEL_ENDPOINT:-otel.deparrow.net:4317}"
+  
+  metrics:
+    enabled: true
+    prometheus:
+      enabled: true
+      port: 9090
+      path: "/metrics"
+
+# Resource monitoring
+metrics:
+  collection_interval: "30s"
+  retention: "24h"
+  
+  node_metrics:
+    - "cpu_usage"
+    - "memory_usage"
+    - "disk_usage"
+    - "network_io"
+    - "docker_containers"
+
+# Network configuration
+network:
+  # Public network settings
+  public_network: true
+  
+  # P2P networking
+  peer_discovery:
+    enabled: true
+    bootstrap_peers:
+      - "${DEPARROW_BOOTSTRAP_P2P:-/ip4/bootstrap.deparrow.net/tcp/4001"}

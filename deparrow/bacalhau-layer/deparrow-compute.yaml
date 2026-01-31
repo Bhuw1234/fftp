@@ -1,0 +1,125 @@
+# DEparrow Compute Node Configuration
+# Auto-joins DEparrow network and connects to DEparrow orchestrator
+
+node:
+  type: compute
+  labels:
+    deparrow: "true"
+    layer: "bacalhau"
+    role: "compute"
+    arch: "${NODE_ARCH}"
+    os: "alpine"
+
+compute:
+  # Connect to DEparrow orchestrator (not default Bacalhau)
+  orchestrators:
+    - "${DEPARROW_ORCHESTRATOR_HOST}:4222"
+  
+  capacity:
+    ignorePhysicalResourceLimits: false
+    totalResourceLimits:
+      cpu: "${NODE_CPU}"
+      memory: "${NODE_MEMORY}"
+      disk: "${NODE_DISK}"
+      gpu: "${NODE_GPU}"
+  
+  execution:
+    engines:
+      - docker
+      - wasm
+    timeout: 1h
+  
+  storage:
+    sources:
+      - s3
+      - ipfs
+      - local
+      - http
+
+# DEparrow specific configuration
+deparrow:
+  bootstrap:
+    enabled: true
+    endpoint: "https://bootstrap.deparrow.net"
+    apiKey: "${DEPARROW_API_KEY}"
+    # Auto-register with DEparrow bootstrap
+    autoRegister: true
+  
+  payment:
+    enabled: true
+    # Earn credits for compute contribution
+    creditEarningRate: 0.1  # credits per CPU-hour
+    payoutThreshold: 10.0   # minimum credits for payout
+  
+  network:
+    publicNetwork: false
+    autoJoin: true
+    discovery:
+      - "deparrow://bootstrap.deparrow.net:4222"
+
+# Docker configuration for compute nodes
+docker:
+  enabled: true
+  # Use Docker-in-Docker for better isolation
+  dind:
+    enabled: true
+    image: "bacalhauproject/bacalhau:latest-dind"
+    privileged: true
+  
+  registry:
+    auth:
+      enabled: true
+    mirror:
+      enabled: false
+
+# WebAssembly execution
+wasm:
+  enabled: true
+  runtime: "wazero"
+  memoryLimit: 256MB
+  fuelLimit: 1000000
+
+# Security configuration
+security:
+  tls:
+    enabled: true
+    requireClientCert: true
+  
+  auth:
+    type: "jwt"
+    issuer: "deparrow-auth"
+    audience: "deparrow-nodes"
+  
+  isolation:
+    enabled: true
+    level: "high"
+
+# Resource monitoring
+monitoring:
+  enabled: true
+  interval: 30s
+  metrics:
+    cpu: true
+    memory: true
+    disk: true
+    network: true
+  
+  alerts:
+    enabled: true
+    thresholds:
+      cpu: 90%
+      memory: 85%
+      disk: 80%
+
+# Node identity
+identity:
+  nodeId: "${NODE_ID}"
+  publicKey: "${NODE_PUBLIC_KEY}"
+  privateKey: "${NODE_PRIVATE_KEY}"
+
+# Auto-update configuration
+update:
+  enabled: true
+  channel: "stable"
+  interval: 24h
+  autoApply: false

@@ -1,0 +1,89 @@
+# DEparrow Orchestrator Configuration
+# This configuration replaces the default Bacalhau bootstrap with DEparrow bootstrap
+
+node:
+  type: orchestrator
+  labels:
+    deparrow: "true"
+    layer: "bacalhau"
+    role: "orchestrator"
+
+compute:
+  capacity:
+    ignorePhysicalResourceLimits: false
+    defaultJobResourceLimits:
+      cpu: 1.0
+      memory: 2GB
+      disk: 10GB
+      gpu: 0
+
+orchestrator:
+  nodeInfoStoreTTL: 5m
+  evaluationBroker:
+    initialEvalDelay: 1s
+    maxEvalDelay: 1m
+  scheduler:
+    preemption: "system"
+    memoryOversubscriptionEnabled: false
+
+# DEparrow specific configuration
+deparrow:
+  bootstrap:
+    enabled: true
+    # DEparrow bootstrap endpoint (replaces default Bacalhau bootstrap)
+    endpoint: "https://bootstrap.deparrow.net"
+    apiKey: "${DEPARROW_API_KEY}"
+  
+  payment:
+    enabled: true
+    # Credit-based payment system
+    creditCheckEnabled: true
+    minCreditBalance: 10.0
+  
+  network:
+    # Private DEparrow network, not public Bacalhau
+    publicNetwork: false
+    autoJoin: true
+    discovery:
+      - "deparrow://bootstrap.deparrow.net:4222"
+
+# NATS configuration for DEparrow network
+nats:
+  port: 4222
+  cluster:
+    name: "deparrow-cluster"
+    routes:
+      - "nats://bootstrap.deparrow.net:4222"
+  
+  jetstream:
+    enabled: true
+    storeDir: "/var/lib/bacalhau/nats/jetstream"
+
+# Security configuration
+security:
+  tls:
+    enabled: true
+    requireClientCert: true
+  
+  auth:
+    type: "jwt"
+    issuer: "deparrow-auth"
+    audience: "deparrow-nodes"
+
+# Observability
+observability:
+  tracing:
+    enabled: true
+    exporter: "otlp"
+    endpoint: "otel.deparrow.net:4317"
+  
+  metrics:
+    enabled: true
+    prometheus:
+      enabled: true
+      port: 9090
+  
+  logging:
+    level: "info"
+    format: "json"
+    output: "stdout"
