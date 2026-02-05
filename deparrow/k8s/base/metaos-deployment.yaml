@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metaos
+  labels:
+    app: metaos
+    component: control-plane
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: metaos
+  template:
+    metadata:
+      labels:
+        app: metaos
+    spec:
+      containers:
+        - name: metaos
+          image: deparrow/metaos:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DEPARROW_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: deparrow-secrets
+                  key: DEPARROW_SECRET_KEY
+            - name: DATABASE_URL
+              value: postgresql://deparrow:deparrow@postgres:5432/deparrow
+            - name: REDIS_URL
+              value: redis://redis:6379/0
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: deparrow-config
+                  key: LOG_LEVEL
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

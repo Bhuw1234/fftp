@@ -1,0 +1,103 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 1,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": "prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 80 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 0 },
+      "id": 1,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "9.0.0",
+      "targets": [
+        {
+          "expr": "deparrow_active_nodes",
+          "refId": "A"
+        }
+      ],
+      "title": "Active Nodes",
+      "type": "stat"
+    },
+    {
+      "datasource": "prometheus",
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 0 },
+      "id": 2,
+      "targets": [
+        {
+          "expr": "deparrow_total_jobs",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Jobs",
+      "type": "stat"
+    },
+    {
+      "datasource": "prometheus",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 0 },
+      "id": 3,
+      "targets": [
+        {
+          "expr": "deparrow_total_credits",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Credits",
+      "type": "stat"
+    },
+    {
+      "datasource": "prometheus",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 0 },
+      "id": 4,
+      "targets": [
+        {
+          "expr": "deparrow_total_compute_gflops",
+          "refId": "A"
+        }
+      ],
+      "title": "Compute Power (GFLOPS)",
+      "type": "stat"
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 37,
+  "style": "dark",
+  "tags": ["deparrow"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "",
+  "title": "DEparrow Overview",
+  "uid": "deparrow-overview",
+  "version": 1,
+  "weekStart": ""
+}

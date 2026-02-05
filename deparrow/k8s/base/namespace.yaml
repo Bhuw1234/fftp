@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: deparrow
+  labels:
+    app.kubernetes.io/name: deparrow
+    app.kubernetes.io/part-of: deparrow

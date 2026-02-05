@@ -1,0 +1,37 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Meta-OS Control Plane
+  - job_name: 'metaos'
+    static_configs:
+      - targets: ['metaos:8080']
+    metrics_path: '/metrics'
+
+  # Bacalhau Orchestrator
+  - job_name: 'bacalhau-orchestrator'
+    static_configs:
+      - targets: ['bacalhau-orchestrator:1234']
+    metrics_path: '/api/v1/metrics'
+
+  # Bacalhau Compute Nodes
+  - job_name: 'bacalhau-compute'
+    static_configs:
+      - targets: ['bacalhau-compute:1234']
+    metrics_path: '/api/v1/metrics'
+
+  # PostgreSQL
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres:5432']
+
+  # Redis
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+
+  # Self monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

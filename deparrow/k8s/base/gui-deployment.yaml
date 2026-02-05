@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gui
+  labels:
+    app: gui
+    component: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: gui
+  template:
+    metadata:
+      labels:
+        app: gui
+    spec:
+      containers:
+        - name: gui
+          image: deparrow/gui:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: VITE_API_URL
+              value: http://metaos:8080
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi

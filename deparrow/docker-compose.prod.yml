@@ -1,0 +1,179 @@
+version: '3.8'
+
+# DEparrow Production Stack
+# Usage: docker-compose -f docker-compose.prod.yml up -d
+
+services:
+  # ===========================================
+  # Meta-OS Control Plane
+  # ===========================================
+  metaos:
+    build:
+      context: ./metaos-layer
+      dockerfile: Dockerfile
+    image: deparrow/metaos:latest
+    container_name: deparrow-metaos
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - DEPARROW_SECRET_KEY=${DEPARROW_SECRET_KEY:-dev-secret-key-change-in-prod}
+      - DATABASE_URL=postgresql://deparrow:deparrow@postgres:5432/deparrow
+      - REDIS_URL=redis://redis:6379/0
+      - LOG_LEVEL=info
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - deparrow-network
+
+  # ===========================================
+  # GUI Dashboard
+  # ===========================================
+  gui:
+    build:
+      context: ./gui-layer
+      dockerfile: Dockerfile
+    image: deparrow/gui:latest
+    container_name: deparrow-gui
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://metaos:8080
+      - NODE_ENV=production
+    depends_on:
+      - metaos
+    networks:
+      - deparrow-network
+
+  # ===========================================
+  # Bacalhau Orchestrator
+  # ===========================================
+  bacalhau-orchestrator:
+    image: ghcr.io/bacalhau-project/bacalhau:latest
+    container_name: deparrow-orchestrator
+    restart: unless-stopped
+    command: serve --orchestrator
+    ports:
+      - "4222:4222"
+      - "1234:1234"
+    environment:
+      - BACALHAU_NODE_NETWORK_TYPE=nats
+      - BACALHAU_NODE_NAME=orchestrator-1
+    volumes:
+      - bacalhau-data:/root/.bacalhau
+    networks:
+      - deparrow-network
+
+  # ===========================================
+  # Bacalhau Compute Node (Local)
+  # ===========================================
+  bacalhau-compute:
+    image: ghcr.io/bacalhau-project/bacalhau:latest
+    container_name: deparrow-compute-1
+    restart: unless-stopped
+    command: serve --compute --orchestrators=nats://bacalhau-orchestrator:4222
+    environment:
+      - BACALHAU_NODE_NAME=compute-local-1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - bacalhau-orchestrator
+    networks:
+      - deparrow-network
+
+  # ===========================================
+  # PostgreSQL Database
+  # ===========================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: deparrow-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=deparrow
+      - POSTGRES_PASSWORD=deparrow
+      - POSTGRES_DB=deparrow
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U deparrow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - deparrow-network
+
+  # ===========================================
+  # Redis Cache
+  # ===========================================
+  redis:
+    image: redis:7-alpine
+    container_name: deparrow-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - deparrow-network
+
+  # ===========================================
+  # Prometheus Monitoring
+  # ===========================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: deparrow-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - deparrow-network
+
+  # ===========================================
+  # Grafana Dashboards
+  # ===========================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: deparrow-grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./config/grafana/dashboards:/etc/grafana/provisioning/dashboards
+    depends_on:
+      - prometheus
+    networks:
+      - deparrow-network
+
+networks:
+  deparrow-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
+  bacalhau-data:
+  prometheus-data:
+  grafana-data:
