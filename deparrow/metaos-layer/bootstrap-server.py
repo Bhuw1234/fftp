@@ -94,6 +94,13 @@ class CreditTransaction(BaseModel):
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 # Database Models
+class ContributionTier(str, Enum):
+    BRONZE = "bronze"
+    SILVER = "silver"
+    GOLD = "gold"
+    DIAMOND = "diamond"
+    LEGENDARY = "legendary"
+
 @dataclass
 class Node:
     node_id: str
@@ -104,10 +111,34 @@ class Node:
     last_seen: datetime
     credits_earned: float = 0.0
     labels: Dict[str, str] = None
+    # Contribution tracking
+    cpu_cores: int = 0
+    cpu_usage_hours: float = 0.0
+    gpu_count: int = 0
+    gpu_model: str = ""
+    gpu_usage_hours: float = 0.0
+    memory_gb: float = 0.0
+    live_gflops: float = 0.0
+    location: Dict[str, float] = None  # {"lat": 0, "lng": 0}
     
     def __post_init__(self):
         if self.labels is None:
             self.labels = {}
+        if self.location is None:
+            self.location = {"lat": 0.0, "lng": 0.0}
+    
+    def get_tier(self) -> ContributionTier:
+        """Calculate node tier based on contribution"""
+        total_hours = self.cpu_usage_hours + self.gpu_usage_hours
+        if total_hours >= 10000:
+            return ContributionTier.LEGENDARY
+        elif total_hours >= 5000:
+            return ContributionTier.DIAMOND
+        elif total_hours >= 1000:
+            return ContributionTier.GOLD
+        elif total_hours >= 100:
+            return ContributionTier.SILVER
+        return ContributionTier.BRONZE
 
 @dataclass
 class User:
@@ -172,6 +203,12 @@ class DEparrowBootstrapServer:
         self.app.router.add_get('/api/v1/nodes', self.list_nodes)
         self.app.router.add_get('/api/v1/nodes/{node_id}', self.get_node)
         self.app.router.add_post('/api/v1/nodes/{node_id}/heartbeat', self.node_heartbeat)
+        
+        # Contribution tracking routes
+        self.app.router.add_get('/api/v1/nodes/{node_id}/contribution', self.get_node_contribution)
+        self.app.router.add_get('/api/v1/network/contribution', self.get_network_contribution)
+        self.app.router.add_get('/api/v1/network/leaderboard', self.get_leaderboard)
+        self.app.router.add_get('/api/v1/network/globe', self.get_globe_data)
         
         self.app.router.add_post('/api/v1/orchestrators/register', self.register_orchestrator)
         self.app.router.add_get('/api/v1/orchestrators', self.list_orchestrators)
@@ -653,6 +690,174 @@ class DEparrowBootstrapServer:
                     'active': len([j for j in self.jobs.values()])  # Would have status in production
                 }
             },
+            'timestamp': datetime.utcnow().isoformat()
+        })
+    
+    # ============ Contribution Tracking ============
+    
+    async def get_node_contribution(self, request: web.Request):
+        """Get a node's contribution percentage to the network"""
+        node_id = request.match_info['node_id']
+        
+        if node_id not in self.nodes:
+            return web.json_response({'error': 'Node not found'}, status=404)
+        
+        node = self.nodes[node_id]
+        
+        # Calculate network totals
+        total_cpu_hours = sum(n.cpu_usage_hours for n in self.nodes.values())
+        total_gpu_hours = sum(n.gpu_usage_hours for n in self.nodes.values())
+        total_gflops = sum(n.live_gflops for n in self.nodes.values())
+        
+        # Calculate percentages
+        cpu_percent = (node.cpu_usage_hours / total_cpu_hours * 100) if total_cpu_hours > 0 else 0
+        gpu_percent = (node.gpu_usage_hours / total_gpu_hours * 100) if total_gpu_hours > 0 else 0
+        gflops_percent = (node.live_gflops / total_gflops * 100) if total_gflops > 0 else 0
+        
+        # Calculate rank
+        sorted_nodes = sorted(
+            self.nodes.values(),
+            key=lambda n: n.cpu_usage_hours + n.gpu_usage_hours,
+            reverse=True
+        )
+        rank = next((i + 1 for i, n in enumerate(sorted_nodes) if n.node_id == node_id), 0)
+        
+        return web.json_response({
+            'node_id': node_id,
+            'contribution': {
+                'cpu': {
+                    'cores': node.cpu_cores,
+                    'usage_hours': node.cpu_usage_hours,
+                    'percent_of_network': round(cpu_percent, 2)
+                },
+                'gpu': {
+                    'count': node.gpu_count,
+                    'model': node.gpu_model,
+                    'usage_hours': node.gpu_usage_hours,
+                    'percent_of_network': round(gpu_percent, 2)
+                },
+                'memory_gb': node.memory_gb,
+                'live_gflops': node.live_gflops,
+                'gflops_percent': round(gflops_percent, 2)
+            },
+            'ranking': {
+                'rank': rank,
+                'total_nodes': len(self.nodes),
+                'tier': node.get_tier().value,
+                'tier_icon': self._get_tier_icon(node.get_tier())
+            },
+            'credits_earned': node.credits_earned,
+            'pulse': node.status == NodeStatus.ONLINE,  # For animation
+            'timestamp': datetime.utcnow().isoformat()
+        })
+    
+    def _get_tier_icon(self, tier: ContributionTier) -> str:
+        """Get emoji icon for tier"""
+        icons = {
+            ContributionTier.BRONZE: "🥉",
+            ContributionTier.SILVER: "🥈",
+            ContributionTier.GOLD: "🥇",
+            ContributionTier.DIAMOND: "💎",
+            ContributionTier.LEGENDARY: "🔥"
+        }
+        return icons.get(tier, "🥉")
+    
+    async def get_network_contribution(self, request: web.Request):
+        """Get total network contribution statistics"""
+        online_nodes = [n for n in self.nodes.values() if n.status == NodeStatus.ONLINE]
+        
+        total_cpu_cores = sum(n.cpu_cores for n in self.nodes.values())
+        total_cpu_hours = sum(n.cpu_usage_hours for n in self.nodes.values())
+        total_gpu_count = sum(n.gpu_count for n in self.nodes.values())
+        total_gpu_hours = sum(n.gpu_usage_hours for n in self.nodes.values())
+        total_memory_gb = sum(n.memory_gb for n in self.nodes.values())
+        live_gflops = sum(n.live_gflops for n in online_nodes)
+        
+        # Tier distribution
+        tier_counts = {}
+        for tier in ContributionTier:
+            tier_counts[tier.value] = len([n for n in self.nodes.values() if n.get_tier() == tier])
+        
+        return web.json_response({
+            'network': {
+                'total_nodes': len(self.nodes),
+                'online_nodes': len(online_nodes),
+                'total_cpu_cores': total_cpu_cores,
+                'total_cpu_hours': round(total_cpu_hours, 2),
+                'total_gpu_count': total_gpu_count,
+                'total_gpu_hours': round(total_gpu_hours, 2),
+                'total_memory_gb': round(total_memory_gb, 2),
+                'live_gflops': round(live_gflops, 2),
+                'live_tflops': round(live_gflops / 1000, 2)
+            },
+            'tiers': tier_counts,
+            'pulse': True,  # Network is alive
+            'timestamp': datetime.utcnow().isoformat()
+        })
+    
+    async def get_leaderboard(self, request: web.Request):
+        """Get contribution leaderboard with rankings"""
+        limit = int(request.query.get('limit', 20))
+        
+        # Sort by total contribution
+        sorted_nodes = sorted(
+            self.nodes.values(),
+            key=lambda n: n.cpu_usage_hours + n.gpu_usage_hours,
+            reverse=True
+        )[:limit]
+        
+        leaderboard = []
+        for rank, node in enumerate(sorted_nodes, 1):
+            leaderboard.append({
+                'rank': rank,
+                'node_id': node.node_id[:12] + '...',  # Truncate for privacy
+                'tier': node.get_tier().value,
+                'tier_icon': self._get_tier_icon(node.get_tier()),
+                'cpu_hours': round(node.cpu_usage_hours, 2),
+                'gpu_hours': round(node.gpu_usage_hours, 2),
+                'total_hours': round(node.cpu_usage_hours + node.gpu_usage_hours, 2),
+                'live_gflops': round(node.live_gflops, 2),
+                'credits_earned': round(node.credits_earned, 2),
+                'status': node.status.value,
+                'pulse': node.status == NodeStatus.ONLINE
+            })
+        
+        return web.json_response({
+            'leaderboard': leaderboard,
+            'total_participants': len(self.nodes),
+            'timestamp': datetime.utcnow().isoformat()
+        })
+    
+    async def get_globe_data(self, request: web.Request):
+        """Get node locations for 3D globe visualization"""
+        globe_nodes = []
+        
+        for node in self.nodes.values():
+            if node.location.get('lat') and node.location.get('lng'):
+                globe_nodes.append({
+                    'id': node.node_id[:8],
+                    'lat': node.location['lat'],
+                    'lng': node.location['lng'],
+                    'status': node.status.value,
+                    'gflops': node.live_gflops,
+                    'tier': node.get_tier().value,
+                    'pulse': node.status == NodeStatus.ONLINE
+                })
+        
+        # Calculate connection lines (top contributors connect to each other)
+        connections = []
+        top_nodes = sorted(globe_nodes, key=lambda n: n['gflops'], reverse=True)[:10]
+        for i, node in enumerate(top_nodes[:-1]):
+            connections.append({
+                'from': {'lat': node['lat'], 'lng': node['lng']},
+                'to': {'lat': top_nodes[i + 1]['lat'], 'lng': top_nodes[i + 1]['lng']},
+                'strength': min(node['gflops'], top_nodes[i + 1]['gflops'])
+            })
+        
+        return web.json_response({
+            'nodes': globe_nodes,
+            'connections': connections,
+            'center': {'lat': 20.0, 'lng': 0.0},
             'timestamp': datetime.utcnow().isoformat()
         })
     
