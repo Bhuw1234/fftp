@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 interface ContributionData {
     cpu: { percent: number; cores: number; hours: number };
@@ -75,7 +75,7 @@ const ProgressRing: React.FC<{
 };
 
 export const ContributionRings: React.FC<{ data?: ContributionData }> = ({ data }) => {
-    const [contribution, setContribution] = useState<ContributionData | null>(data || null);
+    const [contribution] = useState<ContributionData | null>(data || null);
     const [isLive, setIsLive] = useState(false);
 
     useEffect(() => {

@@ -1,0 +1,171 @@
+# Service Accounts
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: deparrow-metaos
+  labels:
+    app.kubernetes.io/name: metaos
+    app.kubernetes.io/component: control-plane
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: deparrow-orchestrator
+  labels:
+    app.kubernetes.io/name: orchestrator
+    app.kubernetes.io/component: orchestration
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: deparrow-compute
+  labels:
+    app.kubernetes.io/name: compute
+    app.kubernetes.io/component: compute
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: deparrow-gui
+  labels:
+    app.kubernetes.io/name: gui
+    app.kubernetes.io/component: frontend
+---
+# Roles for Meta-OS
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: metaos-role
+  labels:
+    app.kubernetes.io/name: metaos
+rules:
+  # ConfigMaps and Secrets read access
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "list", "watch"]
+  # Pod read access for node discovery
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+  # Services for endpoint discovery
+  - apiGroups: [""]
+    resources: ["services", "endpoints"]
+    verbs: ["get", "list", "watch"]
+  # Events for audit logging
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+---
+# Role for Orchestrator
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: orchestrator-role
+  labels:
+    app.kubernetes.io/name: orchestrator
+rules:
+  # Pod management for compute node discovery
+  - apiGroups: [""]
+    resources: ["pods", "pods/status"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # Service discovery
+  - apiGroups: [""]
+    resources: ["services", "endpoints"]
+    verbs: ["get", "list", "watch"]
+  # ConfigMaps for configuration
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+---
+# Role for Compute Nodes
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: compute-role
+  labels:
+    app.kubernetes.io/name: compute
+rules:
+  # Read own pod info
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  # ConfigMaps for configuration
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+---
+# Role Bindings
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: metaos-rolebinding
+  labels:
+    app.kubernetes.io/name: metaos
+subjects:
+  - kind: ServiceAccount
+    name: deparrow-metaos
+    namespace: deparrow
+roleRef:
+  kind: Role
+  name: metaos-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: orchestrator-rolebinding
+  labels:
+    app.kubernetes.io/name: orchestrator
+subjects:
+  - kind: ServiceAccount
+    name: deparrow-orchestrator
+    namespace: deparrow
+roleRef:
+  kind: Role
+  name: orchestrator-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: compute-rolebinding
+  labels:
+    app.kubernetes.io/name: compute
+subjects:
+  - kind: ServiceAccount
+    name: deparrow-compute
+    namespace: deparrow
+roleRef:
+  kind: Role
+  name: compute-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# Cluster Role for node metrics (optional, for advanced monitoring)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: deparrow-node-reader
+  labels:
+    app.kubernetes.io/name: deparrow
+rules:
+  - apiGroups: [""]
+    resources: ["nodes", "nodes/metrics", "nodes/stats"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["nodes", "pods"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: deparrow-node-reader-binding
+  labels:
+    app.kubernetes.io/name: deparrow
+subjects:
+  - kind: ServiceAccount
+    name: deparrow-metaos
+    namespace: deparrow
+roleRef:
+  kind: ClusterRole
+  name: deparrow-node-reader
+  apiGroup: rbac.authorization.k8s.io

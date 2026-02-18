@@ -7,12 +7,10 @@ import {
   Activity, 
   TrendingUp,
   Users,
-  Cpu,
-  HardDrive
+  Cpu
 } from 'lucide-react'
-import { systemAPI, nodesAPI, jobsAPI, walletAPI } from '../api/client'
+import { systemAPI, jobsAPI, walletAPI } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
-import toast from 'react-hot-toast'
 
 interface DashboardStats {
   nodes: {

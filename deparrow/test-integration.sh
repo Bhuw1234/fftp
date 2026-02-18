@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # DEparrow Integration Test Script
-# Tests all 4 layers of the DEparrow platform
+# Comprehensive test runner for all DEparrow components
 
 set -e
 
 echo "========================================="
-echo "DEparrow Platform Integration Test"
+echo "DEparrow Platform Integration Tests"
 echo "========================================="
 echo ""
 
@@ -15,16 +15,31 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 NC='\033[0m' # No Color
+
+# Test counters
+TOTAL_TESTS=0
+PASSED_TESTS=0
+FAILED_TESTS=0
+SKIPPED_TESTS=0
 
 # Function to print status
 print_status() {
     if [ $1 -eq 0 ]; then
         echo -e "${GREEN}✓${NC} $2"
+        PASSED_TESTS=$((PASSED_TESTS + 1))
     else
         echo -e "${RED}✗${NC} $2"
-        exit 1
+        FAILED_TESTS=$((FAILED_TESTS + 1))
     fi
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
+}
+
+print_skip() {
+    echo -e "${YELLOW}⊘${NC} $1"
+    SKIPPED_TESTS=$((SKIPPED_TESTS + 1))
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
 }
 
 # Function to check if a command exists
@@ -36,253 +51,270 @@ check_command() {
     fi
 }
 
-# Function to check if a service is running
-check_service() {
-    if pgrep -f "$1" > /dev/null; then
-        print_status 0 "$1 is running"
+# Function to run Go tests
+run_go_tests() {
+    local package=$1
+    local pattern=$2
+    local description=$3
+    
+    echo -e "${CYAN}Running: ${description}${NC}"
+    
+    if go test -v -tags=integration -count=1 -timeout=5m "./${package}" -run "${pattern}" 2>&1; then
+        print_status 0 "${description}"
+        return 0
     else
-        print_status 1 "$1 is not running"
+        print_status 1 "${description}"
+        return 1
     fi
 }
 
-# Function to test API endpoint
-test_api() {
-    local url=$1
-    local expected_status=$2
-    local response=$(curl -s -o /dev/null -w "%{http_code}" "$url" 2>/dev/null || echo "000")
+# Function to run tests with coverage
+run_tests_with_coverage() {
+    local package=$1
+    local output_file=$2
     
-    if [ "$response" = "$expected_status" ]; then
-        print_status 0 "API $url returns $expected_status"
+    echo -e "${CYAN}Running tests with coverage...${NC}"
+    
+    go test -v -tags=integration -coverprofile="${output_file}" -covermode=atomic "./${package}" 2>&1
+    
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}Coverage report saved to: ${output_file}${NC}"
+        go tool cover -func="${output_file}" | tail -n 1
+        return 0
     else
-        print_status 1 "API $url returned $response (expected $expected_status)"
+        return 1
     fi
 }
+
+# Parse arguments
+RUN_COVERAGE=false
+PARALLEL=false
+VERBOSE=false
+TEST_PATTERN=""
+PACKAGES=""
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --coverage|-c)
+            RUN_COVERAGE=true
+            shift
+            ;;
+        --parallel|-p)
+            PARALLEL=true
+            shift
+            ;;
+        --verbose|-v)
+            VERBOSE=true
+            shift
+            ;;
+        --pattern|-r)
+            TEST_PATTERN="$2"
+            shift 2
+            ;;
+        --package|-P)
+            PACKAGES="$2"
+            shift 2
+            ;;
+        --help|-h)
+            echo "Usage: $0 [options]"
+            echo ""
+            echo "Options:"
+            echo "  --coverage, -c     Run tests with coverage report"
+            echo "  --parallel, -p     Run tests in parallel"
+            echo "  --verbose, -v      Verbose output"
+            echo "  --pattern, -r      Test pattern to run (regex)"
+            echo "  --package, -P      Package to test (default: all)"
+            echo "  --help, -h         Show this help message"
+            echo ""
+            echo "Examples:"
+            echo "  $0                          # Run all tests"
+            echo "  $0 --coverage               # Run with coverage"
+            echo "  $0 -p -c                    # Parallel with coverage"
+            echo "  $0 -r 'TestLogin'           # Run tests matching 'TestLogin'"
+            echo "  $0 -P './test-integration'  # Run specific package"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+done
 
 echo -e "${BLUE}=== Prerequisite Checks ===${NC}"
 echo ""
 
 # Check required commands
+check_command go
 check_command docker
 check_command python3
-check_command node
-check_command npm
-check_command curl
 
 echo ""
-echo -e "${BLUE}=== Layer 1: Bacalhau Execution Network ===${NC}"
+echo -e "${BLUE}=== File Structure Verification ===${NC}"
 echo ""
 
-# Check Bacalhau configuration files
-if [ -f "bacalhau-layer/deparrow-orchestrator.yaml" ]; then
-    print_status 0 "Orchestrator config exists"
-else
-    print_status 1 "Orchestrator config missing"
-fi
-
-if [ -f "bacalhau-layer/deparrow-compute.yaml" ]; then
-    print_status 0 "Compute node config exists"
-else
-    print_status 1 "Compute node config missing"
-fi
-
-echo ""
-echo -e "${BLUE}=== Layer 2: Alpine Linux Base Layer ===${NC}"
-echo ""
-
-# Check Alpine layer files
-if [ -f "alpine-layer/Dockerfile" ]; then
-    print_status 0 "Alpine Dockerfile exists"
-else
-    print_status 1 "Alpine Dockerfile missing"
-fi
-
-if [ -f "alpine-layer/build.sh" ]; then
-    print_status 0 "Alpine build script exists"
-    chmod +x alpine-layer/build.sh
-    print_status 0 "Alpine build script is executable"
-else
-    print_status 1 "Alpine build script missing"
-fi
-
-echo ""
-echo -e "${BLUE}=== Layer 3: Meta-OS Control Plane ===${NC}"
-echo ""
-
-# Check Meta-OS files
-if [ -f "metaos-layer/bootstrap-server.py" ]; then
-    print_status 0 "Bootstrap server exists"
-    
-    # Check Python dependencies
-    if python3 -c "import aiohttp" &> /dev/null; then
-        print_status 0 "Python aiohttp installed"
-    else
-        echo -e "${YELLOW}⚠ Python aiohttp not installed (run: pip install aiohttp)${NC}"
-    fi
-    
-    if python3 -c "import jwt" &> /dev/null; then
-        print_status 0 "Python jwt installed"
-    else
-        echo -e "${YELLOW}⚠ Python jwt not installed (run: pip install pyjwt)${NC}"
-    fi
-else
-    print_status 1 "Bootstrap server missing"
-fi
-
-echo ""
-echo -e "${BLUE}=== Layer 4: GUI Interface Layer ===${NC}"
-echo ""
-
-# Check GUI layer
-if [ -f "gui-layer/package.json" ]; then
-    print_status 0 "GUI package.json exists"
-    
-    # Check if dependencies are installed
-    if [ -d "gui-layer/node_modules" ]; then
-        print_status 0 "GUI dependencies installed"
-    else
-        echo -e "${YELLOW}⚠ GUI dependencies not installed (run: cd gui-layer && npm install)${NC}"
-    fi
-else
-    print_status 1 "GUI package.json missing"
-fi
-
-if [ -f "gui-layer/src/App.tsx" ]; then
-    print_status 0 "GUI main app exists"
-else
-    print_status 1 "GUI main app missing"
-fi
-
-echo ""
-echo -e "${BLUE}=== Documentation and Configuration ===${NC}"
-echo ""
-
-# Check documentation
-if [ -f "../IFLOW.md" ]; then
-    print_status 0 "Platform documentation exists"
-else
-    print_status 1 "Platform documentation missing"
-fi
-
-# Check for environment configuration
-if [ -f ".env.example" ] || [ -f ".env" ]; then
-    print_status 0 "Environment configuration exists"
-else
-    echo -e "${YELLOW}⚠ Environment configuration not found${NC}"
-fi
-
-echo ""
-echo -e "${BLUE}=== Build System Tests ===${NC}"
-echo ""
-
-# Test build commands
-echo "Testing build commands (simulated)..."
-print_status 0 "Bacalhau layer configuration validated"
-print_status 0 "Alpine layer Dockerfile validated"
-print_status 0 "Meta-OS Python code validated"
-print_status 0 "GUI TypeScript code validated"
-
-echo ""
-echo -e "${BLUE}=== Network Configuration ===${NC}"
-echo ""
-
-# Check for required ports
-echo "Checking required ports..."
-for port in 4222 8080 3000; do
-    if nc -z localhost $port 2>/dev/null; then
-        echo -e "${YELLOW}⚠ Port $port is in use${NC}"
-    else
-        print_status 0 "Port $port is available"
-    fi
-done
-
-echo ""
-echo -e "${BLUE}=== Integration Test Summary ===${NC}"
-echo ""
-
-# Create a simple integration test
-echo "Running integration tests..."
-
-# Test 1: Verify directory structure
-echo "1. Directory structure..."
-if [ -d "bacalhau-layer" ] && [ -d "alpine-layer" ] && [ -d "metaos-layer" ] && [ -d "gui-layer" ]; then
-    print_status 0 "All layer directories exist"
-else
-    print_status 1 "Missing layer directories"
-fi
-
-# Test 2: Verify configuration files
-echo "2. Configuration files..."
-config_files=(
-    "bacalhau-layer/deparrow-orchestrator.yaml"
-    "bacalhau-layer/deparrow-compute.yaml"
-    "alpine-layer/Dockerfile"
-    "alpine-layer/build.sh"
-    "metaos-layer/bootstrap-server.py"
-    "gui-layer/package.json"
-    "gui-layer/tsconfig.json"
+# Verify test files exist
+test_files=(
+    "test-integration/picoclaw_integration_test.go"
+    "test-integration/e2e_workflow_test.go"
+    "test-integration/api_test.go"
+    "test-integration/gui_e2e_test.go"
+    "test-integration/testutil/mock_server.go"
+    "test-integration/testutil/fixtures.go"
+    "test-integration/testutil/helpers.go"
 )
 
 missing_files=0
-for file in "${config_files[@]}"; do
-    if [ ! -f "$file" ]; then
-        echo -e "${RED}✗ Missing: $file${NC}"
+for file in "${test_files[@]}"; do
+    if [ -f "$file" ]; then
+        echo -e "${GREEN}✓${NC} Found: $file"
+    else
+        echo -e "${RED}✗${NC} Missing: $file"
         missing_files=$((missing_files + 1))
     fi
 done
 
-if [ $missing_files -eq 0 ]; then
-    print_status 0 "All configuration files exist"
-else
-    print_status 1 "$missing_files configuration files missing"
-fi
-
-# Test 3: Verify executables
-echo "3. Executable permissions..."
-if [ -x "alpine-layer/build.sh" ]; then
-    print_status 0 "Build script is executable"
-else
-    print_status 1 "Build script is not executable"
+if [ $missing_files -gt 0 ]; then
+    echo -e "${RED}Error: $missing_files test files are missing${NC}"
+    exit 1
 fi
 
 echo ""
-echo -e "${BLUE}=== Deployment Instructions ===${NC}"
+echo -e "${BLUE}=== Go Module Verification ===${NC}"
 echo ""
 
-cat << EOF
-To deploy DEparrow platform:
+# Verify Go modules
+echo "Checking Go module dependencies..."
+if go mod download; then
+    echo -e "${GREEN}✓${NC} Go modules downloaded"
+else
+    echo -e "${RED}✗${NC} Failed to download Go modules"
+    exit 1
+fi
 
-1. Start Meta-OS bootstrap server:
-   cd metaos-layer
-   python3 bootstrap-server.py &
-
-2. Build and run Alpine Linux nodes:
-   cd alpine-layer
-   ./build.sh
-   # Follow output for Docker/Kubernetes deployment
-
-3. Start GUI interface:
-   cd gui-layer
-   npm install
-   npm run dev &
-
-4. Configure Bacalhau nodes to use DEparrow bootstrap:
-   # Use deparrow-orchestrator.yaml and deparrow-compute.yaml
-   # Update bootstrap address to point to Meta-OS server
-
-5. Access the platform:
-   - GUI: http://localhost:3000
-   - API: http://localhost:8080
-   - NATS: localhost:4222
-EOF
+# Verify test dependencies compile
+echo "Verifying test compilation..."
+if go build -tags=integration ./test-integration/...; then
+    echo -e "${GREEN}✓${NC} Test code compiles"
+else
+    echo -e "${RED}✗${NC} Test code has compilation errors"
+    exit 1
+fi
 
 echo ""
-echo -e "${GREEN}=========================================${NC}"
-echo -e "${GREEN}Integration test completed successfully!${NC}"
-echo -e "${GREEN}=========================================${NC}"
+echo -e "${BLUE}=== Integration Test Suites ===${NC}"
+echo ""
+
+# Define test packages
+if [ -z "$PACKAGES" ]; then
+    PACKAGES="./test-integration/..."
+fi
+
+# Run tests
+if [ "$RUN_COVERAGE" = true ]; then
+    echo -e "${CYAN}Running tests with coverage...${NC}"
+    
+    coverage_file="coverage.out"
+    
+    if [ "$PARALLEL" = true ]; then
+        # Parallel test execution with coverage (requires gocovmerge)
+        echo -e "${YELLOW}Note: Parallel coverage requires gocovmerge for merging reports${NC}"
+        
+        # Run each test suite separately
+        packages=(
+            "test-integration"
+        )
+        
+        pids=()
+        for i in "${!packages[@]}"; do
+            pkg="${packages[$i]}"
+            cov_file="coverage.${i}.out"
+            go test -tags=integration -coverprofile="${cov_file}" -covermode=atomic "./${pkg}" &
+            pids+=($!)
+        done
+        
+        # Wait for all tests
+        for pid in "${pids[@]}"; do
+            wait $pid
+        done
+        
+        # Merge coverage files
+        if command -v gocovmerge &> /dev/null; then
+            gocovmerge coverage.*.out > coverage.out
+            rm coverage.*.out
+        else
+            echo -e "${YELLOW}gocovmerge not found, using last coverage file${NC}"
+            mv coverage.0.out coverage.out
+        fi
+    else
+        go test -tags=integration -coverprofile="${coverage_file}" -covermode=atomic ${PACKAGES}
+    fi
+    
+    if [ $? -eq 0 ]; then
+        echo ""
+        echo -e "${GREEN}=== Coverage Summary ===${NC}"
+        go tool cover -func="${coverage_file}"
+        
+        # Generate HTML report
+        go tool cover -html="${coverage_file}" -o coverage.html
+        echo -e "${GREEN}HTML coverage report: coverage.html${NC}"
+    fi
+else
+    # Run without coverage
+    if [ "$PARALLEL" = true ]; then
+        echo -e "${CYAN}Running tests in parallel...${NC}"
+        
+        if [ -n "$TEST_PATTERN" ]; then
+            go test -v -tags=integration -count=1 -parallel 4 ${PACKAGES} -run "${TEST_PATTERN}"
+        else
+            go test -v -tags=integration -count=1 -parallel 4 ${PACKAGES}
+        fi
+    else
+        echo -e "${CYAN}Running tests sequentially...${NC}"
+        
+        if [ -n "$TEST_PATTERN" ]; then
+            go test -v -tags=integration -count=1 ${PACKAGES} -run "${TEST_PATTERN}"
+        else
+            go test -v -tags=integration -count=1 ${PACKAGES}
+        fi
+    fi
+fi
+
+TEST_EXIT_CODE=$?
+
+echo ""
+echo -e "${BLUE}=== Test Suite Summary ===${NC}"
+echo ""
+
+if [ $TEST_EXIT_CODE -eq 0 ]; then
+    echo -e "${GREEN}=========================================${NC}"
+    echo -e "${GREEN}All integration tests passed!${NC}"
+    echo -e "${GREEN}=========================================${NC}"
+else
+    echo -e "${RED}=========================================${NC}"
+    echo -e "${RED}Some integration tests failed!${NC}"
+    echo -e "${RED}=========================================${NC}"
+fi
+
+echo ""
+echo "Test execution details:"
+echo "  - Test files: ${#test_files[@]} checked"
+echo "  - Build tags: integration"
+echo "  - Parallel: $PARALLEL"
+echo "  - Coverage: $RUN_COVERAGE"
+if [ -n "$TEST_PATTERN" ]; then
+    echo "  - Pattern: $TEST_PATTERN"
+fi
+
 echo ""
 echo "Next steps:"
-echo "1. Review any warnings above"
-echo "2. Install missing dependencies"
-echo "3. Start the services in order"
-echo "4. Test with sample jobs"
+echo "1. Review any failed tests above"
+echo "2. Check logs for error details"
+echo "3. Run individual test suites for debugging:"
+echo "   go test -v -tags=integration -run TestPicoClawIntegrationSuite ./test-integration"
+echo "   go test -v -tags=integration -run TestE2EWorkflowSuite ./test-integration"
+echo "   go test -v -tags=integration -run TestAPICompatibilitySuite ./test-integration"
+echo "   go test -v -tags=integration -run TestGUIE2ESuite ./test-integration"
 echo ""
+
+exit $TEST_EXIT_CODE

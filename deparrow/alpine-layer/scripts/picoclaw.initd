@@ -1,0 +1,180 @@
+#!/sbin/openrc-run
+# OpenRC init script for PicoClaw AI Agent
+# DEparrow autonomous agent service
+
+name="picoclaw"
+description="DEparrow PicoClaw AI Agent - Autonomous compute node agent"
+description_start="Starting PicoClaw AI Agent"
+description_stop="Stopping PicoClaw AI Agent"
+description_status="Checking PicoClaw AI Agent status"
+
+# Command configuration
+command="/usr/local/bin/picoclaw"
+command_args="gateway --config /etc/picoclaw/config.json"
+command_user="deparrow"
+command_group="deparrow"
+command_background=true
+pidfile="/var/run/${RC_SVCNAME}.pid"
+
+# Working directory
+directory="/var/lib/deparrow"
+
+# Environment
+env_file="/etc/deparrow/environment"
+
+# Dependencies
+depend() {
+    need docker
+    need bacalhau
+    need network
+    after firewall
+    after bacalhau
+    provide deparrow-agent
+}
+
+# Pre-start checks
+start_pre() {
+    ebegin "Preparing PicoClaw environment"
+    
+    # Create necessary directories
+    checkpath -d -m 0755 -o deparrow:deparrow /var/log/deparrow
+    checkpath -d -m 0755 -o deparrow:deparrow /var/lib/deparrow/workspace
+    checkpath -d -m 0755 -o deparrow:deparrow /var/lib/deparrow/workspace/skills
+    checkpath -d -m 0755 -o deparrow:deparrow /var/lib/deparrow/workspace/memory
+    checkpath -d -m 0755 -o deparrow:deparrow /etc/picoclaw
+    
+    # Create log files
+    checkpath -f -m 0644 -o deparrow:deparrow /var/log/deparrow/picoclaw.log
+    checkpath -f -m 0644 -o deparrow:deparrow /var/log/deparrow/picoclaw.error.log
+    
+    # Initialize PicoClaw config if not exists
+    if [ ! -f /etc/picoclaw/config.json ]; then
+        einfo "Initializing PicoClaw configuration"
+        cp /etc/deparrow/picoclaw-default.json /etc/picoclaw/config.json
+        chown deparrow:deparrow /etc/picoclaw/config.json
+        chmod 600 /etc/picoclaw/config.json
+    fi
+    
+    # Load environment if available
+    if [ -f "$env_file" ]; then
+        . "$env_file"
+    fi
+    
+    # Set default environment variables
+    export DEPARROW_API_URL="${DEPARROW_API_URL:-http://localhost:8080}"
+    export PICOCLAW_WORKSPACE="${PICOCLAW_WORKSPACE:-/var/lib/deparrow/workspace}"
+    
+    # Check if Bacalhau is healthy
+    if ! rc-service bacalhau status > /dev/null 2>&1; then
+        ewarn "Bacalhau service is not running, PicoClaw may not function correctly"
+    fi
+    
+    eend $?
+}
+
+# Start the service
+start() {
+    ebegin "${description_start}"
+    
+    # Load environment
+    if [ -f "$env_file" ]; then
+        . "$env_file"
+    fi
+    
+    # Export DEparrow-specific environment
+    export DEPARROW_API_URL="${DEPARROW_API_URL:-http://localhost:8080}"
+    export DEPARROW_NODE_ID="${NODE_ID:-}"
+    export PICOCLAW_WORKSPACE="${PICOCLAW_WORKSPACE:-/var/lib/deparrow/workspace}"
+    
+    start-stop-daemon --start \
+        --exec ${command} \
+        --user ${command_user} \
+        --group ${command_group} \
+        --pidfile ${pidfile} \
+        --make-pidfile \
+        --background \
+        --chdir ${directory} \
+        --stdout /var/log/deparrow/picoclaw.log \
+        --stderr /var/log/deparrow/picoclaw.error.log \
+        -- ${command_args}
+    
+    local rc=$?
+    
+    if [ $rc -eq 0 ]; then
+        # Wait for gateway to be ready
+        einfo "Waiting for PicoClaw gateway to start..."
+        local max_wait=30
+        local waited=0
+        while [ $waited -lt $max_wait ]; do
+            if curl -sf http://localhost:18790/health > /dev/null 2>&1; then
+                einfo "PicoClaw gateway is ready"
+                break
+            fi
+            sleep 1
+            waited=$((waited + 1))
+        done
+        
+        if [ $waited -eq $max_wait ]; then
+            ewarn "PicoClaw gateway health check timed out"
+        fi
+    fi
+    
+    eend $rc
+}
+
+# Stop the service
+stop() {
+    ebegin "${description_stop}"
+    
+    start-stop-daemon --stop \
+        --pidfile ${pidfile} \
+        --retry SIGTERM/5 SIGKILL/5 \
+        --progress
+    
+    eend $?
+}
+
+# Check service status
+status() {
+    if [ -f "${pidfile}" ]; then
+        local pid=$(cat ${pidfile})
+        if kill -0 "$pid" 2>/dev/null; then
+            einfo "${name} is running with PID ${pid}"
+            
+            # Check gateway health
+            if curl -sf http://localhost:18790/health > /dev/null 2>&1; then
+                einfo "Gateway health check: OK"
+            else
+                ewarn "Gateway health check: FAILED"
+            fi
+            
+            return 0
+        else
+            ewarn "${name} is dead but pidfile exists"
+            return 1
+        fi
+    else
+        einfo "${name} is not running"
+        return 3
+    fi
+}
+
+# Reload configuration (graceful restart)
+reload() {
+    ebegin "Reloading PicoClaw configuration"
+    
+    # Send HUP signal for graceful reload if supported
+    if [ -f "${pidfile}" ]; then
+        start-stop-daemon --signal HUP --pidfile ${pidfile}
+        eend $?
+    else
+        eend 1 "Service not running"
+    fi
+}
+
+# Restart service
+restart() {
+    stop
+    sleep 2
+    start
+}

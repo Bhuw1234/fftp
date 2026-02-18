@@ -60,13 +60,17 @@ export const jobsAPI = {
   cancel: (id: string) => api.post(`/jobs/${id}/cancel`),
   logs: (id: string) => api.get(`/jobs/${id}/logs`),
   results: (id: string) => api.get(`/jobs/${id}/results`),
+  estimate: (spec: any) => api.post('/jobs/estimate', spec),
 }
 
 // Nodes API
 export const nodesAPI = {
-  list: () => api.get('/nodes'),
+  list: (params?: { status?: string; arch?: string; region?: string }) =>
+    api.get('/nodes', { params }),
   get: (id: string) => api.get(`/nodes/${id}`),
   stats: () => api.get('/nodes/stats'),
+  update: (id: string, data: { labels?: Record<string, string>; status?: string }) =>
+    api.put(`/nodes/${id}`, data),
 }
 
 // Wallet API
@@ -76,6 +80,10 @@ export const walletAPI = {
     api.get('/wallet/transactions', { params }),
   deposit: (amount: number) => api.post('/wallet/deposit', { amount }),
   withdraw: (amount: number) => api.post('/wallet/withdraw', { amount }),
+  transfer: (recipientId: string, amount: number) =>
+    api.post('/wallet/transfer', { recipientId, amount }),
+  history: (params?: { period?: string }) =>
+    api.get('/wallet/history', { params }),
 }
 
 // System API
@@ -83,6 +91,29 @@ export const systemAPI = {
   health: () => api.get('/health'),
   stats: () => api.get('/stats'),
   config: () => api.get('/config'),
+  metrics: () => api.get('/metrics'),
+}
+
+// Agent API (for Agent.tsx)
+export const agentAPI = {
+  status: () => api.get('/agent/status'),
+  start: () => api.post('/agent/start'),
+  pause: () => api.post('/agent/pause'),
+  stop: () => api.post('/agent/stop'),
+  chat: (message: string) => api.post('/agent/chat', { message }),
+  updateTool: (toolName: string, enabled: boolean) =>
+    api.put(`/agent/tools/${toolName}`, { enabled }),
+}
+
+// Providers API (for Providers.tsx)
+export const providersAPI = {
+  list: (params?: { status?: string; region?: string; gpu?: boolean }) =>
+    api.get('/providers', { params }),
+  get: (id: string) => api.get(`/providers/${id}`),
+  estimate: (providerId: string, spec: any) =>
+    api.post('/providers/estimate', { providerId, spec }),
+  submitJob: (providerId: string, job: any) =>
+    api.post(`/providers/${providerId}/jobs`, job),
 }
 
 export default api

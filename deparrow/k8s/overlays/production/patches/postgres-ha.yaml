@@ -1,0 +1,53 @@
+# PostgreSQL High Availability (optional - using Patroni)
+# This is a placeholder for HA PostgreSQL setup
+# In production, consider using:
+# - CloudNativePG
+# - CrunchyData PostgreSQL Operator
+# - Managed PostgreSQL (AWS RDS, GCP Cloud SQL, etc.)
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+spec:
+  replicas: 3
+  serviceName: postgres-ha
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-ha
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - port: 5432
+      targetPort: 5432
+  selector:
+    app: postgres
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-primary
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: 5432
+  selector:
+    app: postgres
+    role: primary
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-replica
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: 5432
+  selector:
+    app: postgres
+    role: replica

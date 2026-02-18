@@ -1,0 +1,134 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: deparrow-ingress
+  labels:
+    app.kubernetes.io/name: deparrow
+    app.kubernetes.io/component: ingress
+  annotations:
+    # NGINX Ingress Controller annotations
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    
+    # WebSocket support
+    nginx.ingress.kubernetes.io/websocket-services: "metaos"
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    nginx.ingress.kubernetes.io/upstream-hash-by: "$http_x_session_id"
+    
+    # SSL redirect
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    
+    # Rate limiting
+    nginx.ingress.kubernetes.io/limit-connections: "100"
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    
+    # Security headers
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      add_header X-Frame-Options "SAMEORIGIN" always;
+      add_header X-Content-Type-Options "nosniff" always;
+      add_header X-XSS-Protection "1; mode=block" always;
+      add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    
+    # Cert-manager (if using)
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  # TLS configuration - use cert-manager in production
+  # tls:
+  #   - hosts:
+  #       - deparrow.example.com
+  #     secretName: deparrow-tls
+  rules:
+    # Main application
+    - host: deparrow.example.com
+      http:
+        paths:
+          # GUI frontend
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: gui
+                port:
+                  number: 3000
+          
+          # Meta-OS API
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: metaos
+                port:
+                  number: 8080
+          
+          # WebSocket endpoint
+          - path: /ws
+            pathType: Prefix
+            backend:
+              service:
+                name: metaos
+                port:
+                  number: 8080
+          
+          # Grafana dashboards
+          - path: /grafana
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana
+                port:
+                  number: 3000
+          
+          # Prometheus (admin access)
+          - path: /prometheus
+            pathType: Prefix
+            backend:
+              service:
+                name: prometheus
+                port:
+                  number: 9090
+---
+# Internal API Ingress (for compute nodes)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: deparrow-internal-ingress
+  labels:
+    app.kubernetes.io/name: deparrow
+    app.kubernetes.io/component: ingress
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: "TCP"
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: api.deparrow.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: orchestrator
+                port:
+                  number: 4222
+---
+# Certificate for TLS (using cert-manager)
+# apiVersion: cert-manager.io/v1
+# kind: Certificate
+# metadata:
+#   name: deparrow-cert
+#   namespace: deparrow
+# spec:
+#   secretName: deparrow-tls
+#   issuerRef:
+#     name: letsencrypt-prod
+#     kind: ClusterIssuer
+#   dnsNames:
+#     - deparrow.example.com
+#     - api.deparrow.example.com
+#     - grafana.deparrow.example.com

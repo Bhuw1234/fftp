@@ -1,0 +1,49 @@
+# Compute nodes production resources
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: compute-node-dind
+spec:
+  replicas: 5
+  template:
+    spec:
+      containers:
+        - name: dind
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+        - name: compute
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 4000m
+              memory: 8Gi
+          env:
+            - name: BACALHAU_JOB_CPU
+              value: "3"
+            - name: BACALHAU_JOB_MEMORY
+              value: "7Gi"
+---
+# DaemonSet for nodes with Docker available
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: compute-node
+spec:
+  template:
+    spec:
+      containers:
+        - name: compute
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 4000m
+              memory: 8Gi

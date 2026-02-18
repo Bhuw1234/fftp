@@ -32,6 +32,22 @@ check_bacalhau_health() {
     return 0
 }
 
+check_picoclaw_health() {
+    if ! pgrep -f "picoclaw" > /dev/null; then
+        log_message "WARNING: PicoClaw process not running"
+        return 1
+    fi
+    
+    # Check if PicoClaw gateway is responding
+    if ! curl -sf http://localhost:18790/health > /dev/null 2>&1; then
+        log_message "WARNING: PicoClaw gateway not responding"
+        return 1
+    fi
+    
+    log_message "INFO: PicoClaw agent healthy"
+    return 0
+}
+
 check_docker_health() {
     if ! docker ps > /dev/null 2>&1; then
         log_message "ERROR: Docker daemon not responding"
@@ -118,6 +134,16 @@ collect_metrics() {
     local network_rx=$(cat /proc/net/dev | grep eth0 | awk '{print $2}' | head -1)
     local network_tx=$(cat /proc/net/dev | grep eth0 | awk '{print $10}' | head -1)
     
+    # PicoClaw status
+    local picoclaw_status="stopped"
+    local picoclaw_gateway="unhealthy"
+    if pgrep -f "picoclaw" > /dev/null; then
+        picoclaw_status="running"
+        if curl -sf http://localhost:18790/health > /dev/null 2>&1; then
+            picoclaw_gateway="healthy"
+        fi
+    fi
+    
     # Create metrics JSON
     cat > "$METRICS_FILE" << EOF
 {
@@ -141,6 +167,12 @@ collect_metrics() {
     "status": "$(pgrep -f 'bacalhau serve' > /dev/null && echo 'running' || echo 'stopped')",
     "jobs_executed": 0,
     "credits_earned": 0.0
+  },
+  "picoclaw": {
+    "status": "$picoclaw_status",
+    "gateway": "$picoclaw_gateway",
+    "port": 18790,
+    "model": "${PICOCLAW_MODEL:-gpt-4o-mini}"
   }
 }
 EOF
@@ -179,6 +211,11 @@ main() {
     
     if ! check_bacalhau_health; then
         health_ok=false
+    fi
+    
+    if ! check_picoclaw_health; then
+        # PicoClaw failure is a warning, not critical
+        log_message "WARNING: PicoClaw health check failed"
     fi
     
     if ! check_docker_health; then

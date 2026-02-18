@@ -4,12 +4,10 @@ import {
   Bell, 
   Shield, 
   Key, 
-  Globe, 
   Palette,
   Download,
   Upload,
   Save,
-  AlertCircle,
   CheckCircle
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'

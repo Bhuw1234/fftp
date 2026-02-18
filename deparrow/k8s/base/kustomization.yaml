@@ -3,24 +3,61 @@ kind: Kustomization
 
 namespace: deparrow
 
+# Common labels applied to all resources
+commonLabels:
+  app.kubernetes.io/name: deparrow
+  app.kubernetes.io/managed-by: kustomize
+
 resources:
+  # Namespace (must be first)
   - namespace.yaml
+  
+  # Configuration
+  - configmap.yaml
+  - secrets.yaml
+  
+  # RBAC
+  - rbac.yaml
+  
+  # Network policies
+  - network-policy.yaml
+  
+  # Meta-OS Control Plane
   - metaos-deployment.yaml
   - metaos-service.yaml
+  
+  # GUI Frontend
   - gui-deployment.yaml
   - gui-service.yaml
-  - postgres-deployment.yaml
-  - postgres-service.yaml
+  
+  # Bacalhau Orchestrator
+  - orchestrator-deployment.yaml
+  
+  # Compute Nodes
+  - compute-daemonset.yaml
+  
+  # PostgreSQL Database
+  - postgres-statefulset.yaml
+  
+  # Redis Cache
   - redis-deployment.yaml
   - redis-service.yaml
+  
+  # Monitoring
+  - prometheus.yaml
+  - grafana.yaml
+  
+  # Ingress
+  - ingress.yaml
+  
+  # Auto-scaling
+  - hpa.yaml
 
-configMapGenerator:
-  - name: deparrow-config
-    literals:
-      - LOG_LEVEL=info
-
-secretGenerator:
-  - name: deparrow-secrets
-    literals:
-      - DEPARROW_SECRET_KEY=change-me-in-production
-      - POSTGRES_PASSWORD=deparrow
+# Images for production
+images:
+  - name: deparrow/metaos
+    newTag: latest
+  - name: deparrow/gui
+    newTag: latest
+  - name: ghcr.io/bacalhau-project/bacalhau
+    newTag: latest

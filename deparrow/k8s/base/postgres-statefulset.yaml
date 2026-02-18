@@ -1,0 +1,224 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  labels:
+    app: postgres
+    component: database
+spec:
+  type: ClusterIP
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+      protocol: TCP
+  selector:
+    app: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  labels:
+    app: postgres
+    component: database
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  updateStrategy:
+    type: RollingUpdate
+  podManagementPolicy: OrderedReady
+  template:
+    metadata:
+      labels:
+        app: postgres
+        component: database
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: postgres
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: postgres
+              containerPort: 5432
+              protocol: TCP
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: POSTGRES_DB
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            # Performance tuning
+            - name: POSTGRES_MAX_CONNECTIONS
+              value: "200"
+            - name: POSTGRES_SHARED_BUFFERS
+              value: "256MB"
+            - name: POSTGRES_WORK_MEM
+              value: "16MB"
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - deparrow
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - deparrow
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+            - name: postgres-init
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+      volumes:
+        - name: postgres-init
+          configMap:
+            name: postgres-init-scripts
+            optional: true
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+        labels:
+          app: postgres
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 20Gi
+        storageClassName: standard
+---
+# PostgreSQL initialization scripts
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-scripts
+  labels:
+    app: postgres
+data:
+  01-init.sql: |
+    -- DEparrow database schema
+    CREATE TABLE IF NOT EXISTS users (
+        user_id VARCHAR(64) PRIMARY KEY,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        credit_balance DECIMAL(20, 4) DEFAULT 0.0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS nodes (
+        node_id VARCHAR(64) PRIMARY KEY,
+        public_key TEXT NOT NULL,
+        arch VARCHAR(16) NOT NULL,
+        status VARCHAR(16) DEFAULT 'offline',
+        last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        credits_earned DECIMAL(20, 4) DEFAULT 0.0,
+        cpu_cores INTEGER DEFAULT 0,
+        cpu_usage_hours DECIMAL(10, 2) DEFAULT 0.0,
+        gpu_count INTEGER DEFAULT 0,
+        gpu_model VARCHAR(128),
+        gpu_usage_hours DECIMAL(10, 2) DEFAULT 0.0,
+        memory_gb DECIMAL(10, 2) DEFAULT 0.0,
+        live_gflops DECIMAL(10, 2) DEFAULT 0.0,
+        location_lat DECIMAL(10, 6),
+        location_lng DECIMAL(10, 6),
+        labels JSONB DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS agents (
+        agent_id VARCHAR(64) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        node_id VARCHAR(64) REFERENCES nodes(node_id),
+        status VARCHAR(16) DEFAULT 'offline',
+        tools TEXT[] DEFAULT '{}',
+        last_heartbeat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        config JSONB DEFAULT '{}',
+        credits_earned DECIMAL(20, 4) DEFAULT 0.0,
+        credits_spent DECIMAL(20, 4) DEFAULT 0.0,
+        jobs_completed INTEGER DEFAULT 0,
+        error_count INTEGER DEFAULT 0,
+        metadata JSONB DEFAULT '{}'
+    );
+
+    CREATE TABLE IF NOT EXISTS jobs (
+        job_id VARCHAR(64) PRIMARY KEY,
+        user_id VARCHAR(64) REFERENCES users(user_id),
+        node_id VARCHAR(64) REFERENCES nodes(node_id),
+        spec JSONB NOT NULL,
+        status VARCHAR(16) DEFAULT 'pending',
+        credit_cost DECIMAL(20, 4) DEFAULT 0.0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        started_at TIMESTAMP,
+        completed_at TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS credit_transactions (
+        transaction_id VARCHAR(64) PRIMARY KEY,
+        user_id VARCHAR(64) REFERENCES users(user_id),
+        amount DECIMAL(20, 4) NOT NULL,
+        type VARCHAR(16) NOT NULL,
+        description TEXT,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS orchestrators (
+        orchestrator_id VARCHAR(64) PRIMARY KEY,
+        host VARCHAR(255) NOT NULL,
+        port INTEGER DEFAULT 4222,
+        node_count INTEGER DEFAULT 0,
+        status VARCHAR(16) DEFAULT 'offline',
+        registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Indexes for common queries
+    CREATE INDEX idx_nodes_status ON nodes(status);
+    CREATE INDEX idx_nodes_last_seen ON nodes(last_seen);
+    CREATE INDEX idx_jobs_user_id ON jobs(user_id);
+    CREATE INDEX idx_jobs_status ON jobs(status);
+    CREATE INDEX idx_credit_transactions_user_id ON credit_transactions(user_id);
+    CREATE INDEX idx_agents_node_id ON agents(node_id);
+    CREATE INDEX idx_agents_status ON agents(status);

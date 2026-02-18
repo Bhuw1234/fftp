@@ -1,0 +1,132 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: orchestrator
+  labels:
+    app: orchestrator
+    component: orchestration
+spec:
+  type: ClusterIP
+  ports:
+    - name: nats
+      port: 4222
+      targetPort: 4222
+      protocol: TCP
+    - name: api
+      port: 1234
+      targetPort: 1234
+      protocol: TCP
+  selector:
+    app: orchestrator
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orchestrator
+  labels:
+    app: orchestrator
+    component: orchestration
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: orchestrator
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: orchestrator
+        component: orchestration
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "1234"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: deparrow-orchestrator
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: orchestrator
+              topologyKey: kubernetes.io/hostname
+      containers:
+        - name: orchestrator
+          image: ghcr.io/bacalhau-project/bacalhau:latest
+          imagePullPolicy: Always
+          command:
+            - /bin/bash
+            - -c
+          args:
+            - |
+              bacalhau serve \
+                --orchestrator \
+                --node-name=$(HOSTNAME) \
+                --api-host=0.0.0.0 \
+                --api-port=1234 \
+                --nats-port=4222
+          ports:
+            - name: nats
+              containerPort: 4222
+              protocol: TCP
+            - name: api
+              containerPort: 1234
+              protocol: TCP
+          env:
+            - name: BACALHAU_NODE_NETWORK_TYPE
+              value: "nats"
+            - name: BACALHAU_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: deparrow-config
+                  key: LOG_LEVEL
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 1234
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 1234
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          volumeMounts:
+            - name: orchestrator-data
+              mountPath: /root/.bacalhau
+      volumes:
+        - name: orchestrator-data
+          persistentVolumeClaim:
+            claimName: orchestrator-pvc
+      terminationGracePeriodSeconds: 60
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: orchestrator-pvc
+  labels:
+    app: orchestrator
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: standard

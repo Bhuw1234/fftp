@@ -1,0 +1,21 @@
+# GUI development resources
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gui
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+        - name: gui
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          env:
+            - name: NODE_ENV
+              value: "development"

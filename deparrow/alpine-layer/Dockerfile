@@ -1,6 +1,26 @@
 # DEparrow Alpine Linux Base Image
 # Lightweight node OS with auto-join capability
+# Includes PicoClaw agent for autonomous AI operations
 
+# ============================================================
+# Stage 1: Build PicoClaw binary
+# ============================================================
+FROM golang:1.24-alpine AS picoclaw-builder
+
+RUN apk add --no-cache git make
+
+WORKDIR /src/picoclaw
+
+# Copy PicoClaw source from context
+COPY picoclaw/ ./
+
+# Build for multiple architectures (default to current)
+ARG TARGETARCH=amd64
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -ldflags "-s -w" -o /build/picoclaw ./cmd/picoclaw
+
+# ============================================================
+# Stage 2: Final Alpine Linux Image
+# ============================================================
 FROM alpine:3.21
 
 # Set environment variables
@@ -54,14 +74,27 @@ RUN addgroup -S deparrow && \
     echo "deparrow ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/deparrow
 
 # Create directory structure
-RUN mkdir -p /etc/deparrow /var/lib/deparrow /var/log/deparrow /opt/deparrow
-RUN chown -R deparrow:deparrow /etc/deparrow /var/lib/deparrow /var/log/deparrow /opt/deparrow
+RUN mkdir -p /etc/deparrow /var/lib/deparrow /var/log/deparrow /opt/deparrow \
+    /var/lib/deparrow/workspace /var/lib/picoclaw/workspace
+RUN chown -R deparrow:deparrow /etc/deparrow /var/lib/deparrow /var/log/deparrow /opt/deparrow \
+    /var/lib/picoclaw
 
 # Install Bacalhau binary
 WORKDIR /opt/deparrow
 RUN wget -q https://github.com/bacalhau-project/bacalhau/releases/download/v1.0.0/bacalhau_linux_amd64 -O bacalhau && \
     chmod +x bacalhau && \
     ln -s /opt/deparrow/bacalhau /usr/local/bin/bacalhau
+
+# Copy PicoClaw binary from builder stage
+COPY --from=picoclaw-builder /build/picoclaw /usr/local/bin/picoclaw
+RUN chmod +x /usr/local/bin/picoclaw
+
+# Create symlink: deparrow-agent -> picoclaw
+RUN ln -s /usr/local/bin/picoclaw /usr/local/bin/deparrow-agent
+
+# Create PicoClaw config directory
+RUN mkdir -p /etc/picoclaw && \
+    chown -R deparrow:deparrow /etc/picoclaw
 
 # Copy DEparrow configuration files
 COPY --chown=deparrow:deparrow config/ /etc/deparrow/
@@ -113,6 +146,75 @@ stop() {
 EOF
 
 RUN chmod +x /etc/init.d/bacalhau
+
+# Create OpenRC service for PicoClaw agent
+RUN cat > /etc/init.d/picoclaw << 'EOF'
+#!/sbin/openrc-run
+
+name="picoclaw"
+description="DEparrow PicoClaw AI Agent"
+command="/usr/local/bin/picoclaw"
+command_args="gateway --config /etc/picoclaw/config.json"
+command_user="deparrow"
+command_background=true
+pidfile="/var/run/${RC_SVCNAME}.pid"
+
+depend() {
+    need docker
+    need bacalhau
+    need network
+    after firewall
+    after bacalhau
+}
+
+start_pre() {
+    checkpath -d -m 0755 -o deparrow:deparrow /var/log/deparrow
+    checkpath -f -m 0644 -o deparrow:deparrow /var/log/deparrow/picoclaw.log
+    
+    # Initialize PicoClaw config if not exists
+    if [ ! -f /etc/picoclaw/config.json ]; then
+        cp /etc/deparrow/picoclaw-default.json /etc/picoclaw/config.json
+        chown deparrow:deparrow /etc/picoclaw/config.json
+    fi
+    
+    # Ensure workspace directory exists
+    checkpath -d -m 0755 -o deparrow:deparrow /var/lib/deparrow/workspace
+}
+
+start() {
+    ebegin "Starting ${name}"
+    start-stop-daemon --start \
+        --exec ${command} \
+        --user ${command_user} \
+        --pidfile ${pidfile} \
+        --make-pidfile \
+        --background \
+        --stdout /var/log/deparrow/picoclaw.log \
+        --stderr /var/log/deparrow/picoclaw.error.log \
+        -- ${command_args}
+    eend $?
+}
+
+stop() {
+    ebegin "Stopping ${name}"
+    start-stop-daemon --stop \
+        --pidfile ${pidfile} \
+        --retry 30
+    eend $?
+}
+
+status() {
+    if [ -f "${pidfile}" ]; then
+        einfo "${name} is running with PID $(cat ${pidfile})"
+        return 0
+    else
+        einfo "${name} is not running"
+        return 3
+    fi
+}
+EOF
+
+RUN chmod +x /etc/init.d/picoclaw
 
 # Create DEparrow node initialization script
 RUN cat > /opt/deparrow/scripts/init-node.sh << 'EOF'
@@ -240,6 +342,7 @@ RUN cat > /etc/logrotate.d/deparrow << 'EOF'
     sharedscripts
     postrotate
         /etc/init.d/bacalhau reload > /dev/null 2>&1 || true
+        /etc/init.d/picoclaw reload > /dev/null 2>&1 || true
     endscript
 }
 EOF
@@ -263,12 +366,18 @@ rc-service docker start
 echo "Starting Bacalhau compute node..."
 rc-service bacalhau start
 
+# Start PicoClaw agent
+echo "Starting PicoClaw agent..."
+rc-service picoclaw start
+
 # Start health check cron
 echo "Starting health monitoring..."
 crond -f -l 8 &
 
 # Keep container running
 echo "DEparrow node is running..."
+echo "  - Bacalhau: http://localhost:1234"
+echo "  - PicoClaw: http://localhost:18790"
 tail -f /var/log/deparrow/bacalhau.log
 EOF
 
@@ -279,7 +388,10 @@ WORKDIR /opt/deparrow
 ENTRYPOINT ["/opt/deparrow/entrypoint.sh"]
 
 # Expose necessary ports
-EXPOSE 4222 9090
+# 4222 - NATS
+# 9090 - Metrics
+# 18790 - PicoClaw gateway
+EXPOSE 4222 9090 18790
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
@@ -289,4 +401,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 LABEL org.deparrow.version="1.0.0"
 LABEL org.deparrow.arch="multiarch"
 LABEL org.deparrow.layer="alpine-base"
-LABEL org.deparrow.description="DEparrow Alpine Linux Compute Node"
+LABEL org.deparrow.description="DEparrow Alpine Linux Compute Node with PicoClaw Agent"
+LABEL org.deparrow.components="bacalhau,picoclaw,docker"

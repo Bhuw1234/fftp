@@ -9,8 +9,6 @@ import {
   Activity,
   Settings,
   AlertCircle,
-  CheckCircle,
-  Clock,
   Zap
 } from 'lucide-react'
 import { nodesAPI } from '../api/client'

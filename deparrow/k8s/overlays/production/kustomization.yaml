@@ -1,0 +1,68 @@
+# Production Environment Overlay
+# High availability, auto-scaling, production-ready
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: deparrow
+
+resources:
+  - ../../base
+  - patches/postgres-ha.yaml
+  - patches/redis-ha.yaml
+  - patches/cert-manager.yaml
+
+patchesStrategicMerge:
+  - patches/metaos-prod.yaml
+  - patches/gui-prod.yaml
+  - patches/postgres-prod.yaml
+  - patches/redis-prod.yaml
+  - patches/orchestrator-prod.yaml
+  - patches/compute-prod.yaml
+  - patches/hpa-prod.yaml
+  - patches/ingress-prod.yaml
+  - patches/network-policy-prod.yaml
+  - patches/pdb-prod.yaml
+
+# Production-specific config
+configMapGenerator:
+  - name: deparrow-config
+    behavior: merge
+    literals:
+      - LOG_LEVEL=info
+      - NODE_ENV=production
+      - DEPARROW_CREDIT_RATE=0.1
+      - DEPARROW_SUBMISSION_COST=1.0
+
+# Production image tags - pinned versions
+images:
+  - name: deparrow/metaos
+    newTag: v1.0.0
+  - name: deparrow/gui
+    newTag: v1.0.0
+  - name: ghcr.io/bacalhau-project/bacalhau
+    newTag: v1.6.0
+  - name: postgres
+    newTag: "15-alpine"
+  - name: redis
+    newTag: "7-alpine"
+  - name: prom/prometheus
+    newTag: v2.48.1
+  - name: grafana/grafana
+    newTag: 10.2.3
+
+# Production replicas
+replicas:
+  - name: metaos
+    count: 3
+  - name: gui
+    count: 2
+  - name: orchestrator
+    count: 2
+  - name: compute-node-dind
+    count: 5
+
+# Common annotations for production
+commonAnnotations:
+  deparrow.io/environment: "production"
+  deparrow.io/managed-by: "kustomize"

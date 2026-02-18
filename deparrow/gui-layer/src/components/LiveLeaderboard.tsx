@@ -25,7 +25,6 @@ const tierGradients: Record<string, string> = {
 
 export const LiveLeaderboard: React.FC = () => {
     const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         // Simulated data - in production would fetch from WebSocket
@@ -42,7 +41,6 @@ export const LiveLeaderboard: React.FC = () => {
 
         setTimeout(() => {
             setEntries(mockData);
-            setIsLoading(false);
         }, 500);
     }, []);
 

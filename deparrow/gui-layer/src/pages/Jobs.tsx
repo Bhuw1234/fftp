@@ -2,11 +2,9 @@ import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { 
   Plus, 
-  Play, 
   Pause, 
   Square, 
   Eye,
-  Filter,
   Search,
   Calendar,
   Clock,
@@ -192,7 +190,7 @@ const Jobs: React.FC = () => {
           }
           break
         default:
-          toast.info(`${action} action not implemented yet`)
+          console.info(`${action} action not implemented yet`)
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Action failed')

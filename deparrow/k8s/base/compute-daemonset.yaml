@@ -1,0 +1,230 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: compute-node
+  labels:
+    app: compute-node
+    component: compute
+spec:
+  type: ClusterIP
+  clusterIP: None  # Headless service for DaemonSet
+  ports:
+    - name: api
+      port: 1234
+      targetPort: 1234
+      protocol: TCP
+  selector:
+    app: compute-node
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: compute-node
+  labels:
+    app: compute-node
+    component: compute
+spec:
+  selector:
+    matchLabels:
+      app: compute-node
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: compute-node
+        component: compute
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "1234"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: deparrow-compute
+      hostPID: false
+      hostIPC: false
+      hostNetwork: false
+      tolerations:
+        # Allow scheduling on master nodes if needed
+        - key: node-role.kubernetes.io/master
+          effect: NoSchedule
+          operator: Exists
+        - key: node-role.kubernetes.io/control-plane
+          effect: NoSchedule
+          operator: Exists
+      containers:
+        - name: compute
+          image: ghcr.io/bacalhau-project/bacalhau:latest
+          imagePullPolicy: Always
+          command:
+            - /bin/bash
+            - -c
+          args:
+            - |
+              bacalhau serve \
+                --compute \
+                --node-name=$(HOSTNAME) \
+                --orchestrators=nats://orchestrator:4222 \
+                --api-host=0.0.0.0 \
+                --api-port=1234
+          ports:
+            - name: api
+              containerPort: 1234
+              protocol: TCP
+          env:
+            - name: BACALHAU_NODE_NETWORK_TYPE
+              value: "nats"
+            - name: BACALHAU_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: deparrow-config
+                  key: LOG_LEVEL
+            # Resource limits from node
+            - name: CPU_CORES
+              valueFrom:
+                resourceFieldRef:
+                  resource: limits.cpu
+            - name: MEMORY_LIMIT
+              valueFrom:
+                resourceFieldRef:
+                  resource: limits.memory
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 1234
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 1234
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "4"
+              memory: 8Gi
+          volumeMounts:
+            - name: compute-data
+              mountPath: /root/.bacalhau
+            - name: docker-sock
+              mountPath: /var/run/docker.sock
+              readOnly: false
+            - name: temp-dir
+              mountPath: /tmp/bacalhau
+      volumes:
+        - name: compute-data
+          hostPath:
+            path: /var/lib/deparrow/compute
+            type: DirectoryOrCreate
+        - name: docker-sock
+          hostPath:
+            path: /var/run/docker.sock
+            type: Socket
+        - name: temp-dir
+          emptyDir:
+            sizeLimit: 50Gi
+      terminationGracePeriodSeconds: 120
+---
+# Alternative: Docker-in-Docker compute node for environments without host Docker
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: compute-node-dind
+  labels:
+    app: compute-node-dind
+    component: compute
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: compute-node-dind
+  template:
+    metadata:
+      labels:
+        app: compute-node-dind
+        component: compute
+    spec:
+      serviceAccountName: deparrow-compute
+      containers:
+        # Docker-in-Docker sidecar
+        - name: dind
+          image: docker:27.1.1-dind
+          securityContext:
+            privileged: true
+          env:
+            - name: DOCKER_TLS_CERTDIR
+              value: "/certs"
+          volumeMounts:
+            - name: docker-certs
+              mountPath: /certs
+            - name: docker-data
+              mountPath: /var/lib/docker
+        # Compute node
+        - name: compute
+          image: ghcr.io/bacalhau-project/bacalhau:latest
+          imagePullPolicy: Always
+          command:
+            - /bin/bash
+            - -c
+          args:
+            - |
+              export DOCKER_HOST=tcp://localhost:2376
+              export DOCKER_TLS_VERIFY=1
+              export DOCKER_CERT_PATH=/certs/client
+              bacalhau serve \
+                --compute \
+                --node-name=$(HOSTNAME) \
+                --orchestrators=nats://orchestrator:4222 \
+                --api-host=0.0.0.0 \
+                --api-port=1234
+          ports:
+            - name: api
+              containerPort: 1234
+              protocol: TCP
+          env:
+            - name: BACALHAU_NODE_NETWORK_TYPE
+              value: "nats"
+            - name: BACALHAU_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: DOCKER_HOST
+              value: "tcp://localhost:2376"
+            - name: DOCKER_TLS_VERIFY
+              value: "1"
+            - name: DOCKER_CERT_PATH
+              value: "/certs/client"
+          volumeMounts:
+            - name: docker-certs
+              mountPath: /certs/client
+              readOnly: true
+            - name: compute-data
+              mountPath: /root/.bacalhau
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: "4"
+              memory: 8Gi
+      volumes:
+        - name: docker-certs
+          emptyDir: {}
+        - name: docker-data
+          emptyDir:
+            sizeLimit: 50Gi
+        - name: compute-data
+          emptyDir: {}

@@ -1,0 +1,58 @@
+# Development Environment Overlay
+# Minimal resources for local development
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: deparrow-dev
+
+nameSuffix: -dev
+
+resources:
+  - ../../base
+
+# Disable HPA for dev
+patchesStrategicMerge:
+  - patches/hpa-disable.yaml
+  - patches/metaos-dev.yaml
+  - patches/gui-dev.yaml
+  - patches/postgres-dev.yaml
+  - patches/redis-dev.yaml
+  - patches/orchestrator-dev.yaml
+
+# Development-specific config
+configMapGenerator:
+  - name: deparrow-config
+    behavior: merge
+    literals:
+      - LOG_LEVEL=debug
+      - NODE_ENV=development
+      - DEPARROW_CREDIT_RATE=1.0
+
+# Development secrets (NOT FOR PRODUCTION)
+secretGenerator:
+  - name: deparrow-secrets
+    behavior: merge
+    literals:
+      - DEPARROW_JWT_SECRET=dev-jwt-secret
+      - DEPARROW_SECRET_KEY=dev-secret-key
+      - POSTGRES_PASSWORD=dev-password
+      - GRAFANA_ADMIN_PASSWORD=dev-admin
+
+# Development image tags
+images:
+  - name: deparrow/metaos
+    newTag: dev
+  - name: deparrow/gui
+    newTag: dev
+  - name: ghcr.io/bacalhau-project/bacalhau
+    newTag: latest
+
+# Reduce replica counts
+replicas:
+  - name: metaos
+    count: 1
+  - name: gui
+    count: 1
+  - name: compute-node-dind
+    count: 1
