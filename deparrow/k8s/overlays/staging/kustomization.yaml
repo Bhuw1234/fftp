@@ -10,6 +10,8 @@ nameSuffix: -staging
 
 resources:
   - ../../base
+  # External Secrets Operator - uncomment when SecretStore is configured
+  # - patches/external-secrets.yaml
 
 patchesStrategicMerge:
   - patches/metaos-staging.yaml

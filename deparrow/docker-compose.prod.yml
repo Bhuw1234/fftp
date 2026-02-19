@@ -1,12 +1,29 @@
-version: '3.8'
-
+# =============================================================================
 # DEparrow Production Stack
-# Usage: docker-compose -f docker-compose.prod.yml up -d
+# =============================================================================
+#
+# IMPORTANT: This configuration requires environment variables to be set.
+# Copy .env.example to .env and update all values before running.
+#
+# Usage:
+#   cp .env.example .env
+#   # Edit .env with your secure values
+#   docker-compose -f docker-compose.prod.yml up -d
+#
+# Security Notes:
+#   - NEVER commit .env files to version control
+#   - Use strong, unique passwords for production
+#   - Rotate secrets regularly
+#   - Consider using Docker Secrets or external secret management
+#
+# =============================================================================
 
 services:
   # ===========================================
   # Meta-OS Control Plane
   # ===========================================
+  # Core API server for the DEparrow platform
+  # Requires: DEPARROW_SECRET_KEY (JWT signing)
   metaos:
     build:
       context: ./metaos-layer
@@ -15,12 +32,16 @@ services:
     container_name: deparrow-metaos
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "${METAOS_PORT:-8080}:8080"
     environment:
-      - DEPARROW_SECRET_KEY=${DEPARROW_SECRET_KEY:-dev-secret-key-change-in-prod}
-      - DATABASE_URL=postgresql://deparrow:deparrow@postgres:5432/deparrow
-      - REDIS_URL=redis://redis:6379/0
-      - LOG_LEVEL=info
+      # JWT signing key - MUST be changed in production
+      # Generate with: openssl rand -hex 32
+      - DEPARROW_SECRET_KEY=${DEPARROW_SECRET_KEY:?DEPARROW_SECRET_KEY is required}
+      # Database connection - uses POSTGRES_USER, POSTGRES_PASSWORD
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-deparrow}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-deparrow}
+      # Redis connection (no auth by default, add password in production)
+      - REDIS_URL=redis://${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/${REDIS_DB:-0}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
     depends_on:
       postgres:
         condition: service_healthy
@@ -37,6 +58,7 @@ services:
   # ===========================================
   # GUI Dashboard
   # ===========================================
+  # Web interface for DEparrow
   gui:
     build:
       context: ./gui-layer
@@ -45,9 +67,9 @@ services:
     container_name: deparrow-gui
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${GUI_PORT:-3000}:3000"
     environment:
-      - VITE_API_URL=http://metaos:8080
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:8080}
       - NODE_ENV=production
     depends_on:
       - metaos
@@ -57,14 +79,15 @@ services:
   # ===========================================
   # Bacalhau Orchestrator
   # ===========================================
+  # Central coordinator for compute jobs
   bacalhau-orchestrator:
-    image: ghcr.io/bacalhau-project/bacalhau:latest
+    image: ghcr.io/bacalhau-project/bacalhau:${BACALHAU_VERSION:-latest}
     container_name: deparrow-orchestrator
     restart: unless-stopped
     command: serve --orchestrator
     ports:
-      - "4222:4222"
-      - "1234:1234"
+      - "${ORCHESTRATOR_NATS_PORT:-4222}:4222"
+      - "${ORCHESTRATOR_API_PORT:-1234}:1234"
     environment:
       - BACALHAU_NODE_NETWORK_TYPE=nats
       - BACALHAU_NODE_NAME=orchestrator-1
@@ -76,8 +99,10 @@ services:
   # ===========================================
   # Bacalhau Compute Node (Local)
   # ===========================================
+  # Executes compute jobs (requires Docker socket)
+  # Security: Ensure Docker socket access is restricted
   bacalhau-compute:
-    image: ghcr.io/bacalhau-project/bacalhau:latest
+    image: ghcr.io/bacalhau-project/bacalhau:${BACALHAU_VERSION:-latest}
     container_name: deparrow-compute-1
     restart: unless-stopped
     command: serve --compute --orchestrators=nats://bacalhau-orchestrator:4222
@@ -93,18 +118,21 @@ services:
   # ===========================================
   # PostgreSQL Database
   # ===========================================
+  # Persistent storage for Meta-OS
+  # Security: POSTGRES_PASSWORD MUST be set to a strong password
   postgres:
-    image: postgres:15-alpine
+    image: postgres:${POSTGRES_VERSION:-15}-alpine
     container_name: deparrow-postgres
     restart: unless-stopped
     environment:
-      - POSTGRES_USER=deparrow
-      - POSTGRES_PASSWORD=deparrow
-      - POSTGRES_DB=deparrow
+      # Database credentials - MUST change POSTGRES_PASSWORD in production
+      - POSTGRES_USER=${POSTGRES_USER:-deparrow}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      - POSTGRES_DB=${POSTGRES_DB:-deparrow}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U deparrow"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-deparrow}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -114,11 +142,16 @@ services:
   # ===========================================
   # Redis Cache
   # ===========================================
+  # In-memory cache and session storage
+  # Note: Consider adding AUTH password for production
   redis:
-    image: redis:7-alpine
+    image: redis:${REDIS_VERSION:-7}-alpine
     container_name: deparrow-redis
     restart: unless-stopped
-    command: redis-server --appendonly yes
+    command: >
+      redis-server
+      --appendonly yes
+      ${REDIS_PASSWORD:+--requirepass ${REDIS_PASSWORD}}
     volumes:
       - redis-data:/data
     healthcheck:
@@ -132,33 +165,42 @@ services:
   # ===========================================
   # Prometheus Monitoring
   # ===========================================
+  # Metrics collection and alerting
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:${PROMETHEUS_VERSION:-latest}
     container_name: deparrow-prometheus
     restart: unless-stopped
     ports:
-      - "9090:9090"
+      - "${PROMETHEUS_PORT:-9090}:9090"
     volumes:
       - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus-data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
     networks:
       - deparrow-network
 
   # ===========================================
   # Grafana Dashboards
   # ===========================================
+  # Visualization and monitoring dashboards
+  # Security: GF_SECURITY_ADMIN_PASSWORD MUST be changed
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:${GRAFANA_VERSION:-latest}
     container_name: deparrow-grafana
     restart: unless-stopped
     ports:
-      - "3001:3000"
+      - "${GRAFANA_PORT:-3001}:3000"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
-      - GF_USERS_ALLOW_SIGN_UP=false
+      # Admin password - MUST change in production
+      # Generate with: openssl rand -base64 24
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required}
+      - GF_USERS_ALLOW_SIGN_UP=${GRAFANA_ALLOW_SIGNUP:-false}
+      # Optional: Disable anonymous access
+      - GF_AUTH_ANONYMOUS_ENABLED=${GRAFANA_ANONYMOUS:-false}
     volumes:
       - grafana-data:/var/lib/grafana
       - ./config/grafana/dashboards:/etc/grafana/provisioning/dashboards

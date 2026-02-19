@@ -11,6 +11,8 @@ resources:
   - patches/postgres-ha.yaml
   - patches/redis-ha.yaml
   - patches/cert-manager.yaml
+  # External Secrets Operator - uncomment when SecretStore is configured
+  # - patches/external-secrets.yaml
 
 patchesStrategicMerge:
   - patches/metaos-prod.yaml

@@ -15,6 +15,9 @@ resources:
   # Configuration
   - configmap.yaml
   - secrets.yaml
+  # External Secrets Operator (optional - for production)
+  # Uncomment to enable External Secrets Operator
+  # - external-secret.yaml
   
   # RBAC
   - rbac.yaml

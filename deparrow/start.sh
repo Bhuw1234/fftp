@@ -78,16 +78,45 @@ case $MODE in
         echo ""
         
         cd "$SCRIPT_DIR"
+        
+        # Check for .env file
+        if [ ! -f ".env" ]; then
+            echo "⚠️  No .env file found. Creating from template..."
+            cp .env.example .env
+            echo ""
+            echo "❌ ERROR: Please configure your secrets in .env file before starting."
+            echo "   Required variables: DEPARROW_SECRET_KEY, POSTGRES_PASSWORD, GRAFANA_ADMIN_PASSWORD"
+            echo ""
+            echo "   Run: ./scripts/validate-secrets.sh --strict"
+            echo "   Then: ./start.sh prod"
+            exit 1
+        fi
+        
+        # Validate secrets
+        echo "🔐 Validating environment secrets..."
+        if ! ./scripts/validate-secrets.sh; then
+            echo ""
+            echo "❌ Secret validation failed. Please fix the errors above."
+            echo "   Run: ./scripts/validate-secrets.sh --strict"
+            exit 1
+        fi
+        echo ""
+        
+        # Source environment variables
+        set -a
+        source .env
+        set +a
+        
         docker compose -f docker-compose.prod.yml up -d
         
         echo ""
         echo "========================================================="
         echo "✅ DEparrow is running in production!"
         echo ""
-        echo "   🌐 Meta-OS API:  http://localhost:8080"
-        echo "   🎨 GUI:          http://localhost:3000"
-        echo "   📊 Prometheus:   http://localhost:9090"
-        echo "   📈 Grafana:      http://localhost:3001 (admin/admin)"
+        echo "   🌐 Meta-OS API:  http://localhost:${METAOS_PORT:-8080}"
+        echo "   🎨 GUI:          http://localhost:${GUI_PORT:-3000}"
+        echo "   📊 Prometheus:   http://localhost:${PROMETHEUS_PORT:-9090}"
+        echo "   📈 Grafana:      http://localhost:${GRAFANA_PORT:-3001}"
         echo ""
         echo "To stop: docker compose -f docker-compose.prod.yml down"
         echo "========================================================="

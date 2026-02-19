@@ -1,5 +1,9 @@
 # Development Environment Overlay
 # Minimal resources for local development
+#
+# IMPORTANT: This environment uses embedded secrets for convenience.
+# These secrets are NOT SECURE and should NEVER be used in staging/production.
+# Production deployments must use External Secrets Operator.
 
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -10,6 +14,7 @@ nameSuffix: -dev
 
 resources:
   - ../../base
+  # No external-secrets.yaml for dev - use local secrets only
 
 # Disable HPA for dev
 patchesStrategicMerge:
@@ -29,15 +34,30 @@ configMapGenerator:
       - NODE_ENV=development
       - DEPARROW_CREDIT_RATE=1.0
 
-# Development secrets (NOT FOR PRODUCTION)
+# Development secrets (NOT FOR PRODUCTION!)
+# These override base secrets with dev-specific values
+# External Secrets Operator is NOT used in dev environment
 secretGenerator:
   - name: deparrow-secrets
-    behavior: merge
+    behavior: replace
     literals:
-      - DEPARROW_JWT_SECRET=dev-jwt-secret
-      - DEPARROW_SECRET_KEY=dev-secret-key
-      - POSTGRES_PASSWORD=dev-password
-      - GRAFANA_ADMIN_PASSWORD=dev-admin
+      - DEPARROW_JWT_SECRET=dev-jwt-secret-NOT-FOR-PRODUCTION
+      - DEPARROW_SECRET_KEY=dev-secret-key-NOT-FOR-PRODUCTION
+      - POSTGRES_PASSWORD=dev-db-password
+      - POSTGRES_REPLICATION_PASSWORD=dev-replication-password
+      - REDIS_PASSWORD=dev-redis-password
+      - GRAFANA_ADMIN_USER=admin
+      - GRAFANA_ADMIN_PASSWORD=dev-admin-password
+  - name: postgres-credentials
+    behavior: replace
+    literals:
+      - POSTGRES_USER=deparrow
+      - POSTGRES_PASSWORD=dev-db-password
+      - POSTGRES_DB=deparrow
+  - name: redis-credentials
+    behavior: replace
+    literals:
+      - REDIS_PASSWORD=dev-redis-password
 
 # Development image tags
 images:
