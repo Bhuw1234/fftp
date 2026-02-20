@@ -75,3 +75,6 @@ test_integration/common_assets/bacalhau_bin
 webui/compiled/*
 
 .claude/settings.local.json
+
+# Go test binaries
+*.test

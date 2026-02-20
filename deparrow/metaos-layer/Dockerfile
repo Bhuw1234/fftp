@@ -2,8 +2,14 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install dependencies
-RUN pip install --no-cache-up flask flask-cors flask-jwt-extended psycopg2-binary redis gunicorn
+# Install async dependencies (bootstrap-server.py uses aiohttp)
+RUN pip install --no-cache-dir \
+    aiohttp \
+    aiohttp-cors \
+    asyncpg \
+    pydantic \
+    PyJWT \
+    uvicorn[standard]
 
 # Copy application
 COPY bootstrap-server.py .
@@ -19,5 +25,5 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:8080/api/v1/health || exit 1
 
-# Run with gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "4", "bootstrap-server:app"]
+# Run with uvicorn (async server for aiohttp)
+CMD ["uvicorn", "bootstrap-server:app", "--host", "0.0.0.0", "--port", "8080"]

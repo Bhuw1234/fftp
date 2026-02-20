@@ -4,13 +4,9 @@ import { afterEach, vi, beforeAll } from 'vitest'
 
 // Polyfill for jsdom missing pointer capture methods
 beforeAll(() => {
-  // @ts-expect-error - jsdom doesn't implement hasPointerCapture
   window.HTMLElement.prototype.hasPointerCapture = vi.fn()
-  // @ts-expect-error - jsdom doesn't implement setPointerCapture
   window.HTMLElement.prototype.setPointerCapture = vi.fn()
-  // @ts-expect-error - jsdom doesn't implement releasePointerCapture
   window.HTMLElement.prototype.releasePointerCapture = vi.fn()
-  // @ts-expect-error - jsdom doesn't implement scrollIntoView
   window.HTMLElement.prototype.scrollIntoView = vi.fn()
 })
 
