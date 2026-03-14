@@ -1,0 +1,22 @@
+# DEparrow Meta-OS Bootstrap Server Dependencies
+# Python 3.11+ required
+
+# Web Framework
+aiohttp>=3.9.0
+aiohttp-cors>=0.7.0
+uvicorn[standard]>=0.27.0
+
+# Database
+asyncpg>=0.29.0
+
+# Validation
+pydantic>=2.5.0
+
+# Authentication
+PyJWT>=2.8.0
+
+# Caching (optional)
+redis>=5.0.0
+
+# Utilities
+python-dotenv>=1.0.0

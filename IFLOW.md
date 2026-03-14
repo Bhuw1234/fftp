@@ -301,7 +301,7 @@ $ deparrow run train-model.py
 
 ## Global VM Implementation Summary
 
-**Total Files:** 15 files
+**Total Files:** 15 files (11 main + 4 capability)
 **Total Tests:** 67+ tests passing
 **Status:** 🎉 100% COMPLETE
 
@@ -408,7 +408,7 @@ $ deparrow run train-model.py
 |------|------|------|
 | Go | 1.24.0 | 核心语言 (Bacalhau) |
 | Go | 1.25.7 | PicoClaw 模块 |
-| Python | 3.8.1+ | SDK 和工具 |
+| Python | 3.10.5+ | SDK 和工具 |
 | Node.js | 18+ | WebUI 开发 |
 | TypeScript | 5.x | WebUI 类型系统 |
 
@@ -520,6 +520,15 @@ $ deparrow run train-model.py
 │   ├── telemetry/             # 遥测
 │   ├── sso/                   # 单点登录
 │   ├── lib/                   # 共享库
+│   ├── globalvm/              # 全球虚拟机实现
+│   │   ├── capability/        # 能力检测 (4 文件)
+│   │   ├── capacity_aggregator.go
+│   │   ├── endpoint.go
+│   │   ├── scheduler.go
+│   │   ├── geo_ranker.go
+│   │   ├── latency_matrix.go
+│   │   ├── location.go
+│   │   └── *_test.go          # 测试文件
 │   └── ...                    # 更多模块
 │
 ├── webui/                     # Web 界面 (Next.js 15)
@@ -527,7 +536,7 @@ $ deparrow run train-model.py
 │   │   ├── jobs/              # 作业页面
 │   │   ├── nodes/             # 节点页面
 │   │   └── providers/         # 提供者页面
-│   ├── components/            # React 组件 (57 个)
+│   ├── components/            # React 组件
 │   │   ├── ui/                # UI 基础组件
 │   │   ├── jobs/              # 作业组件
 │   │   ├── nodes/             # 节点组件
@@ -536,6 +545,7 @@ $ deparrow run train-model.py
 │   └── lib/                   # 工具库
 │
 ├── python/                    # Python SDK (v1.2.1)
+│   └── tests/                 # Python 测试 (5 文件)
 ├── clients/                   # API 客户端
 ├── integration/               # 第三方集成
 │   ├── airflow/               # Airflow 集成
@@ -546,6 +556,15 @@ $ deparrow run train-model.py
 │   ├── bacalhau-layer/        # Bacalhau 层
 │   ├── bootable/              # 可启动镜像
 │   ├── gui-layer/             # GUI 用户界面层 (Vite + React)
+│   │   └── src/pages/         # 8 页面组件
+│   │       ├── Dashboard.tsx  # 网络统计
+│   │       ├── Jobs.tsx       # 作业管理
+│   │       ├── Wallet.tsx     # 钱包积分
+│   │       ├── Nodes.tsx      # 节点监控
+│   │       ├── Settings.tsx   # 用户配置
+│   │       ├── Login.tsx      # 认证
+│   │       ├── Agent.tsx      # AI Agent 控制台
+│   │       └── Providers.tsx  # 提供者市场
 │   ├── metaos-layer/          # Meta-OS 控制平面层
 │   │   ├── bootstrap-server.py # 引导服务器 (2,189 行)
 │   │   └── Dockerfile         # 容器镜像
@@ -809,7 +828,7 @@ deparrow status
 # 工具版本
 golang      1.24.0+
 nodejs      18+
-python      3.8.1+
+python      3.10.5+
 earthly     0.8.3
 pnpm/yarn   9.0.6+/4.4.1+
 poetry      (latest)
@@ -892,6 +911,96 @@ docker-compose -f deparrow/docker-compose.prod.yml up -d
 ```bash
 cd deparrow/alpine-layer
 ./build.sh          # 构建可启动 ISO
+./build.sh all      # 完整构建 (Docker 镜像 + ISO)
+./build.sh local    # 本地测试镜像
+./build.sh iso      # 仅构建 ISO
+```
+
+---
+
+## 测试环境
+
+### 本地开发测试
+
+```bash
+# Go 单元测试
+make unit-test
+
+# Go 集成测试 (需要 Docker)
+make integration-test
+
+# WebUI 测试
+cd webui && yarn test
+
+# Python SDK 测试
+cd python && pytest tests/
+
+# PicoClaw 测试 (需要 Go 1.25.7)
+cd picoclaw && go test ./pkg/deparrow/...
+```
+
+### Docker Compose 测试
+
+```bash
+cd deparrow
+./start.sh dev   # 开发模式
+./start.sh prod  # 生产模式
+
+# 访问服务
+# Meta-OS API: http://localhost:8080
+# GUI: http://localhost:3000
+# Prometheus: http://localhost:9090
+# Grafana: http://localhost:3001
+```
+
+### 可启动 ISO 测试
+
+| 方式 | 说明 | 命令 |
+|------|------|------|
+| **QEMU** | 虚拟机测试 | `qemu-system-x86_64 -m 4G -cdrom deparrow.iso` |
+| **VirtualBox** | 图形化 VM | 创建 VM → 挂载 ISO → 启动 |
+| **USB 启动** | 真实硬件 | `dd if=deparrow.iso of=/dev/sdb bs=4M` |
+| **Docker** | 容器测试 | `./build.sh local && docker run -it deparrow/alpine-node` |
+
+### Kubernetes 测试
+
+```bash
+# Minikube 本地 K8s
+minikube start
+kubectl apply -k deparrow/k8s/overlays/dev
+
+# 或生产配置
+kubectl apply -k deparrow/k8s/overlays/production
+```
+
+### 云平台测试
+
+| 平台 | 配置路径 | 说明 |
+|------|----------|------|
+| **AWS EKS** | `deparrow/k8s/overlays/production` | External Secrets 支持 |
+| **GCP GKE** | `deparrow/k8s/overlays/staging` | GCP metadata 支持 |
+| **Azure AKS** | `deparrow/k8s/overlays/dev` | Azure metadata 支持 |
+
+### 测试金字塔
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    测试金字塔                                │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Level 4: 生产环境 (Production)                             │
+│     └─▶ 真实用户流量，监控告警                              │
+│                                                             │
+│  Level 3: K8s 集群 (Staging/Production)                     │
+│     └─▶ docker-compose.prod.yml 或 云 K8s                   │
+│                                                             │
+│  Level 2: Docker Compose (集成测试)                         │
+│     └─▶ ./start.sh dev                                      │
+│                                                             │
+│  Level 1: 本地单元测试                                      │
+│     └─▶ make unit-test, yarn test, pytest                   │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -1138,12 +1247,12 @@ Apache 2.0 许可证
 - Go 1.24.0+ (Bacalhau Core)
 - Go 1.25.7+ (PicoClaw)
 - Node.js 18+
-- Python 3.8.1+
+- Python 3.10.5+
 - Docker 20.10+
 
 ---
 
-*文档最后更新: 2026-02-20*
+*文档最后更新: 2026-03-15*
 
 ---
 
@@ -1161,11 +1270,11 @@ Apache 2.0 许可证
 │  ✅ Alpine Linux Layer           (100%) - 含 PicoClaw 集成      │
 │  ✅ Meta-OS Control Plane        (85%)  - 30+ API 端点         │
 │  ✅ GUI Layer (Vite)             (100%) - 8/8 页面完成         │
-│  ✅ WebUI (Next.js)              (100%) - 70 组件 + 8 测试     │
+│  ✅ WebUI (Next.js)              (100%) - 57 组件 + 7 测试     │
 │  ✅ PicoClaw Integration         (100%) - 14 工具 + 7 测试     │
 │  ✅ Kubernetes Manifests         (100%) - External Secrets ✅   │
 │  ✅ Docker Compose               (100%) - 安全配置完成         │
-│  ✅ Python SDK Tests             (100%) - 测试完成             │
+│  ✅ Python SDK Tests             (100%) - 6 测试文件           │
 │  ✅ Production Hardening         (100%) - 密钥管理完成          │
 │  ✅ Unified Global VM            (100%) - 5 Phases Complete ✅  │
 │                                                                 │
@@ -1176,20 +1285,23 @@ Apache 2.0 许可证
 
 | 组件 | Go 文件 | 测试文件 | 说明 |
 |------|---------|----------|------|
-| pkg/ (核心库) | 924 | - | 40 个子模块 |
-| 全局测试 | - | 373 | 所有测试文件 |
-| WebUI TSX | 70 | 8 | Next.js 15 |
-| PicoClaw DEparrow | 7 | 7 | 87% 覆盖率 |
-| pkg/globalvm | 11 | 7 | 67+ 测试用例 |
+| pkg/ (核心库) | 942 | 289 | 40 个子模块 |
+| 全局测试 | - | 379 | 所有测试文件 |
+| WebUI TS/TSX | 81 | 7 | Next.js 15 |
+| WebUI 组件 | 57 | - | React 组件 |
+| PicoClaw DEparrow | 14 | 7 | 87% 覆盖率 |
+| pkg/globalvm | 18 | 6 | 11 main + 7 capability |
+| K8s Manifests | 22 | - | base/*.yaml |
+| Python 测试 | - | 6 | 完整覆盖 |
 
 ### 验证摘要 (Agent Validation Results)
 
 | 组件 | Agent | 状态 | 关键发现 |
 |------|-------|------|----------|
-| **Bacalhau Core** | bacalhau-core-engine | ✅ 90% | 924 Go文件, 373 测试文件 |
+| **Bacalhau Core** | bacalhau-core-engine | ✅ 90% | 942 Go文件, 379 测试文件 |
 | **Meta-OS** | deparrow-metaos | ✅ 85% | 30+ API端点, JWT+Credit完整 |
 | **GUI Layer** | deparrow-gui-layer | ✅ 100% | 8/8页面, 完整API集成 |
-| **WebUI** | webui-deployment-agent | ✅ 100% | 70 TSX文件 + 8 测试 |
+| **WebUI** | webui-deployment-agent | ✅ 100% | 81 TS/TSX文件 + 7 测试 |
 | **Tests** | test-docs-specialist | ✅ 100% | 所有测试已添加 |
 
 ### 完成的功能
@@ -1203,10 +1315,10 @@ Apache 2.0 许可证
 | pkg/publicapi | 56 | - | 13 测试 ✅ |
 | Meta-OS Bootstrap | 1 | 2,189 | 集成测试 ✅ |
 | GUI Layer | 8+ | ~3,000 | E2E测试 ✅ |
-| WebUI | 70 | - | 8 Vitest测试 ✅ |
+| WebUI | 81 | - | 7 Vitest测试 ✅ |
 | PicoClaw DEparrow | 14 | ~1,800 | 7 测试文件, 87%覆盖 ✅ |
-| Kubernetes Manifests | 21+ | ~3,000 | External Secrets ✅ |
-| Python SDK | - | - | 测试完成 ✅ |
+| Kubernetes Manifests | 22 | ~3,000 | External Secrets ✅ |
+| Python SDK Tests | 6 | - | 测试完成 ✅ |
 
 ### 核心文件清单
 
@@ -1223,6 +1335,7 @@ picoclaw/pkg/deparrow/
 
 deparrow/metaos-layer/
 ├── bootstrap-server.py  # 控制平面服务器 (2,189 行)
+├── requirements.txt     # Python 依赖 ✅
 └── Dockerfile           # 容器镜像
 
 deparrow/gui-layer/src/
@@ -1240,13 +1353,14 @@ deparrow/gui-layer/src/
 
 webui/
 ├── app/                 # Next.js 15 App Router
-├── components/          # 57 React 组件
+├── components/          # React 组件 (57 组件)
 │   ├── jobs/            # 作业组件
 │   ├── nodes/           # 节点组件
 │   ├── layout/          # 布局组件
 │   └── ui/              # Radix UI 组件
 ├── hooks/               # 自定义 Hooks
-├── *.test.tsx           # 8 测试文件
+├── lib/                 # 工具库
+├── *.test.tsx           # 7 测试文件
 ├── vitest.config.ts     # Vitest 配置
 └── vitest.setup.ts      # 测试环境设置
 
@@ -1259,14 +1373,20 @@ deparrow/k8s/base/
 ├── network-policy.yaml  # 网络策略
 ├── ingress.yaml         # 入口配置
 ├── metaos-deployment.yaml
+├── metaos-service.yaml
 ├── gui-deployment.yaml
+├── gui-service.yaml
+├── orchestrator-deployment.yaml
 ├── compute-daemonset.yaml
-├── postgres-*.yaml
-├── redis-*.yaml
+├── postgres-deployment.yaml
+├── postgres-statefulset.yaml
+├── postgres-service.yaml
+├── redis-deployment.yaml
+├── redis-service.yaml
 ├── prometheus.yaml
 ├── grafana.yaml
 ├── hpa.yaml             # 自动扩缩容
-└── kustomization.yaml
+└── kustomization.yaml   # (22 YAML files)
 
 deparrow/k8s/overlays/
 ├── dev/                 # 开发环境
@@ -1279,6 +1399,7 @@ deparrow/
 └── k8s/SECRETS.md       # 密钥管理文档 ✅
 
 python/tests/
+├── __init__.py          # 包初始化
 ├── conftest.py          # 共享 fixtures
 ├── test_client.py       # API 客户端测试
 ├── test_jobs.py         # Jobs 类测试
@@ -1302,8 +1423,8 @@ deparrow/test-integration/
 | Go 集成测试 | 51+ | ✅ | `make integration-test` |
 | DEparrow E2E 测试 | 4+ | ✅ | ~2,100 行测试代码 |
 | Bash 测试 | 4 | ✅ | `make bash-test` |
-| Python SDK 测试 | 5 | ✅ | 完整覆盖 |
-| WebUI 测试 | 8 | ✅ | Vitest 测试 |
+| Python SDK 测试 | 6 | ✅ | 完整覆盖 |
+| WebUI 测试 | 7 | ✅ | Vitest 测试 |
 | PicoClaw DEparrow | 7 | ✅ | 87% 覆盖率 |
 
 ### 完成的改进项
@@ -1311,10 +1432,11 @@ deparrow/test-integration/
 | 项目 | 状态 | 说明 |
 |------|------|------|
 | PicoClaw 单元测试 | ✅ 完成 | 7个测试文件, 87%覆盖率 |
-| WebUI 组件测试 | ✅ 完成 | Vitest + React Testing Library, 8测试 |
+| WebUI 组件测试 | ✅ 完成 | Vitest + React Testing Library, 7测试 |
 | K8s 密钥管理 | ✅ 完成 | External Secrets Operator 集成 |
 | Docker Compose 安全 | ✅ 完成 | 环境变量 + 验证脚本 |
-| Python SDK 测试 | ✅ 完成 | 完整测试覆盖 |
+| Python SDK 测试 | ✅ 完成 | 6个测试文件完整覆盖 |
+| Meta-OS 依赖管理 | ✅ 完成 | requirements.txt 已添加 |
 
 ---
 
@@ -1367,7 +1489,7 @@ DEparrow was built on a simple but revolutionary idea:
 
 - 36 files changed
 - 11,334+ lines added
-- 373+ tests
+- 379+ tests
 - 100% production ready
 
 ---
