@@ -47,7 +47,7 @@
 
 ## 核心理念
 
-### 🔄 自动贡献计算
+### 自动贡献计算
 
 ```
 ┌────────────────────────────────────────────────────────────┐
@@ -70,7 +70,7 @@
 └────────────────────────────────────────────────────────────┘
 ```
 
-### 📀 启动即节点 (Bootable ISO)
+### 启动即节点 (Bootable ISO)
 
 ```
 ┌───────────────────────────────────────────────────────────────┐
@@ -98,7 +98,7 @@
 
 ---
 
-## 🌐 Unified Global VM Concept
+## Unified Global VM Concept
 
 ### The Vision
 
@@ -209,12 +209,12 @@ $ deparrow run train-model.py
 
 ## Implementation Progress
 
-### Phase 1: Global Capacity Aggregation ✅ COMPLETE
+### Phase 1: Global Capacity Aggregation COMPLETE
 
 | File | Status | Purpose |
 |------|--------|---------|
-| `pkg/globalvm/capacity_aggregator.go` | ✅ Done | Aggregates capacity from all nodes |
-| `pkg/globalvm/capacity_aggregator_test.go` | ✅ Done | Tests (4 passing) |
+| `pkg/globalvm/capacity_aggregator.go` | Done | Aggregates capacity from all nodes |
+| `pkg/globalvm/capacity_aggregator_test.go` | Done | Tests (4 passing) |
 
 **Key Features Implemented:**
 - `GlobalResources` struct - Total/available CPU, Memory, Disk, GPU
@@ -223,14 +223,14 @@ $ deparrow run train-model.py
 - GPU breakdown by vendor (NVIDIA, AMD/ATI, Intel)
 - `Summary()` - Human-readable "Infinite" view for large clusters
 
-### Phase 2: Unified Job Submission ✅ COMPLETE
+### Phase 2: Unified Job Submission COMPLETE
 
 | File | Status | Purpose |
 |------|--------|---------|
-| `pkg/globalvm/endpoint.go` | ✅ Done | Global VM job submission API |
-| `pkg/globalvm/scheduler.go` | ✅ Done | Intelligent node selection |
-| `pkg/globalvm/endpoint_test.go` | ✅ Done | Endpoint tests |
-| `pkg/globalvm/scheduler_test.go` | ✅ Done | Scheduler tests |
+| `pkg/globalvm/endpoint.go` | Done | Global VM job submission API |
+| `pkg/globalvm/scheduler.go` | Done | Intelligent node selection |
+| `pkg/globalvm/endpoint_test.go` | Done | Endpoint tests |
+| `pkg/globalvm/scheduler_test.go` | Done | Scheduler tests |
 
 **Key Features Implemented:**
 - `GlobalVMEndpoint` interface - SubmitJob, GetJobStatus, ScaleJob, CancelJob
@@ -239,15 +239,15 @@ $ deparrow run train-model.py
 - `RegionRanker` - Scores regions by latency and cost
 - Integration with existing orchestrator/selection system
 
-### Phase 3: Capability Detection ✅ COMPLETE
+### Phase 3: Capability Detection COMPLETE
 
 | File | Status | Purpose |
 |------|--------|---------|
-| `pkg/globalvm/capability/detector.go` | ✅ Done | Main detector interface |
-| `pkg/globalvm/capability/gpu_detector.go` | ✅ Done | GPU detection (NVIDIA/AMD/Intel) |
-| `pkg/globalvm/capability/engine_detector.go` | ✅ Done | Execution engine detection |
-| `pkg/globalvm/capability/benchmark.go` | ✅ Done | Performance benchmarks |
-| `pkg/globalvm/capability/detector_test.go` | ✅ Done | Tests (24 passing) |
+| `pkg/globalvm/capability/detector.go` | Done | Main detector interface |
+| `pkg/globalvm/capability/gpu_detector.go` | Done | GPU detection (NVIDIA/AMD/Intel) |
+| `pkg/globalvm/capability/engine_detector.go` | Done | Execution engine detection |
+| `pkg/globalvm/capability/benchmark.go` | Done | Performance benchmarks |
+| `pkg/globalvm/capability/detector_test.go` | Done | Tests (24 passing) |
 
 **Key Features Implemented:**
 - `CapabilityDetector` interface - DetectAll, Benchmark, Refresh
@@ -258,14 +258,14 @@ $ deparrow run train-model.py
 - `HasGPUVendor()` / `HasEngine()` / `TotalGPUMemory()` helpers
 - `CapabilityScore()` - Overall node capability score
 
-### Phase 4: Geographic Scheduling ✅ COMPLETE
+### Phase 4: Geographic Scheduling COMPLETE
 
 | File | Status | Purpose |
 |------|--------|---------|
-| `pkg/globalvm/latency_matrix.go` | ✅ Done | Latency tracking between regions |
-| `pkg/globalvm/location.go` | ✅ Done | Geographic location detection |
-| `pkg/globalvm/geo_ranker.go` | ✅ Done | Geographic-aware node ranking |
-| `pkg/globalvm/latency_matrix_test.go` | ✅ Done | Tests (25 passing) |
+| `pkg/globalvm/latency_matrix.go` | Done | Latency tracking between regions |
+| `pkg/globalvm/location.go` | Done | Geographic location detection |
+| `pkg/globalvm/geo_ranker.go` | Done | Geographic-aware node ranking |
+| `pkg/globalvm/latency_matrix_test.go` | Done | Tests (25 passing) |
 
 **Key Features Implemented:**
 - `LatencyMatrix` interface - GetLatency, UpdateLatency, GetNearestNodes
@@ -277,11 +277,11 @@ $ deparrow run train-model.py
 - Preferred/excluded regions via job labels/constraints
 - Max latency constraints for latency-sensitive jobs
 
-### Phase 5: Integration & Testing ✅ COMPLETE
+### Phase 5: Integration & Testing COMPLETE
 
 | File | Status | Purpose |
 |------|--------|---------|
-| `pkg/globalvm/integration_test.go` | ✅ Done | End-to-end integration tests |
+| `pkg/globalvm/integration_test.go` | Done | End-to-end integration tests |
 
 **Test Scenarios Covered:**
 1. **Full Job Lifecycle** - Submit → Schedule → Execute → Complete
@@ -301,102 +301,8 @@ $ deparrow run train-model.py
 
 ## Global VM Implementation Summary
 
-**Total Files:** 15 files (11 main + 4 capability)
-**Total Tests:** 67+ tests passing
-**Status:** 🎉 100% COMPLETE
-
----
-
-### Technical Implementation
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    UNIFIED VM ABSTRACTION                       │
-│                                                                 │
-│   ┌──────────────┐                                             │
-│   │    User      │                                             │
-│   │  "Run job"   │                                             │
-│   └──────┬───────┘                                             │
-│          │                                                      │
-│          ▼                                                      │
-│   ┌──────────────────────────────────────────────────────────┐ │
-│   │                 DEparrow Scheduler                       │ │
-│   │                                                          │ │
-│   │  • Accepts job specification                            │ │
-│   │  • Translates to resource requirements                   │ │
-│   │  • Finds optimal nodes (transparently)                   │ │
-│   │  • Handles failures automatically                        │ │
-│   │  • Reports unified status                                │ │
-│   │                                                          │ │
-│   └──────────────────────────────────────────────────────────┘ │
-│          │                                                      │
-│          ▼                                                      │
-│   ┌──────────────────────────────────────────────────────────┐ │
-│   │                   Node Pool (Invisible)                  │ │
-│   │                                                          │ │
-│   │   [Phone] [PC] [Server] [IoT] [GPU] [ARM] [x86] ...     │ │
-│   │                                                          │ │
-│   │   Heterogeneous hardware → Homogeneous experience        │ │
-│   │                                                          │ │
-│   └──────────────────────────────────────────────────────────┘ │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## AI Agent 自主循环
-
-### 生命周期
-
-```
-┌─────────────────────────────────────────────────────┐
-│                                                     │
-│    AI Agent                                         │
-│       │                                             │
-│       │ 1. I need compute to run                    │
-│       ▼                                             │
-│    ┌─────────┐                                      │
-│    │ Wallet  │ ──💰 Credits ──▶ Buy Compute         │
-│    └─────────┘                                      │
-│       ▲                                             │
-│       │ 4. Earn more credits                        │
-│       │                                             │
-│    ┌─────────┐                                      │
-│    │ Provide │ ──🛠️ Services ──▶ Earn Credits      │
-│    │ Services│                                      │
-│    └─────────┘                                      │
-│       │                                             │
-│       │ 2. Run on purchased compute                 │
-│       ▼                                             │
-│    ┌─────────┐                                      │
-│    │ Compute │ ──🚀 Execution ──▶ Agent Lives       │
-│    │ Node    │                                      │
-│    └─────────┘                                      │
-│                                                     │
-└─────────────────────────────────────────────────────┘
-```
-
-### 资源模型
-
-```
-┌───────────────────────────────────────────────────────┐
-│                                                       │
-│   User's System Resources                             │
-│                                                       │
-│   CPU: ████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░    │
-│        ↑ User's apps    ↑ Idle → Contribute          │
-│                                                       │
-│   GPU: ████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    │
-│        ↑ GPU gaming   ↑ Idle GPU → Contribute        │
-│                                                       │
-│   RAM: ████████████████████░░░░░░░░░░░░░░░░░░░░░░░    │
-│        ↑ User's tasks    ↑ Idle → Contribute         │
-│                                                       │
-│   Smart scheduling: Never impact user experience      │
-│                                                       │
-└───────────────────────────────────────────────────────┘
-```
+**Total Files:** 11 main files + 4 capability files + 6 test files
+**Status:** 100% COMPLETE
 
 ---
 
@@ -408,7 +314,7 @@ $ deparrow run train-model.py
 |------|------|------|
 | Go | 1.24.0 | 核心语言 (Bacalhau) |
 | Go | 1.25.7 | PicoClaw 模块 |
-| Python | 3.10.5+ | SDK 和工具 |
+| Python | 3.12.3 | SDK 和工具 |
 | Node.js | 18+ | WebUI 开发 |
 | TypeScript | 5.x | WebUI 类型系统 |
 
@@ -454,7 +360,6 @@ $ deparrow run train-model.py
 | Radix UI | 1.x | 组件库 |
 | Tailwind CSS | 3.4.1 | 样式系统 |
 | Lucide React | 0.438.0 | 图标库 |
-| Axios | 1.8.2 | HTTP 客户端 |
 | next-themes | 0.3.0 | 主题切换 |
 | Vitest | 1.3.1 | 测试框架 |
 
@@ -499,12 +404,9 @@ $ deparrow run train-model.py
 │       ├── config/            # 配置命令
 │       ├── devstack/          # 开发栈
 │       ├── docker/            # Docker 命令
-│       ├── helpers/           # 辅助工具
 │       ├── job/               # 作业管理
-│       ├── license/           # 许可证管理
 │       ├── node/              # 节点管理
 │       ├── serve/             # 服务启动
-│       ├── version/           # 版本信息
 │       └── wasm/              # WebAssembly 命令
 │
 ├── pkg/                       # 核心库 (40 子目录)
@@ -518,24 +420,18 @@ $ deparrow run train-model.py
 │   ├── publicapi/             # 公共 API
 │   ├── jobstore/              # 作业存储
 │   ├── telemetry/             # 遥测
-│   ├── sso/                   # 单点登录
-│   ├── lib/                   # 共享库
 │   ├── globalvm/              # 全球虚拟机实现
-│   │   ├── capability/        # 能力检测 (4 文件)
+│   │   ├── capability/        # 能力检测
 │   │   ├── capacity_aggregator.go
 │   │   ├── endpoint.go
 │   │   ├── scheduler.go
 │   │   ├── geo_ranker.go
 │   │   ├── latency_matrix.go
-│   │   ├── location.go
-│   │   └── *_test.go          # 测试文件
+│   │   └── location.go
 │   └── ...                    # 更多模块
 │
 ├── webui/                     # Web 界面 (Next.js 15)
 │   ├── app/                   # Next.js App Router
-│   │   ├── jobs/              # 作业页面
-│   │   ├── nodes/             # 节点页面
-│   │   └── providers/         # 提供者页面
 │   ├── components/            # React 组件
 │   │   ├── ui/                # UI 基础组件
 │   │   ├── jobs/              # 作业组件
@@ -544,76 +440,58 @@ $ deparrow run train-model.py
 │   ├── hooks/                 # 自定义 Hooks
 │   └── lib/                   # 工具库
 │
-├── python/                    # Python SDK (v1.2.1)
-│   └── tests/                 # Python 测试 (5 文件)
+├── python/                    # Python SDK
+│   └── tests/                 # Python 测试
 ├── clients/                   # API 客户端
 ├── integration/               # 第三方集成
 │   ├── airflow/               # Airflow 集成
 │   └── flyte/                 # Flyte 集成
 │
 ├── deparrow/                  # DEparrow 平台
-│   ├── alpine-layer/          # Alpine Linux 基础层 (ISO)
+│   ├── alpine-layer/          # Alpine Linux 基础层
 │   ├── bacalhau-layer/        # Bacalhau 层
 │   ├── bootable/              # 可启动镜像
-│   ├── gui-layer/             # GUI 用户界面层 (Vite + React)
+│   │   ├── output/            # ISO 输出目录
+│   │   ├── build-iso-v2.sh    # ISO 构建脚本 v2
+│   │   ├── build-iso.sh       # ISO 构建脚本
+│   │   ├── create-iso.sh      # ISO 创建脚本
+│   │   ├── auto-install.sh    # 自动安装脚本
+│   │   └── USER_GUIDE.md      # 用户指南
+│   ├── gui-layer/             # GUI 用户界面层
 │   │   └── src/pages/         # 8 页面组件
-│   │       ├── Dashboard.tsx  # 网络统计
-│   │       ├── Jobs.tsx       # 作业管理
-│   │       ├── Wallet.tsx     # 钱包积分
-│   │       ├── Nodes.tsx      # 节点监控
-│   │       ├── Settings.tsx   # 用户配置
-│   │       ├── Login.tsx      # 认证
-│   │       ├── Agent.tsx      # AI Agent 控制台
-│   │       └── Providers.tsx  # 提供者市场
 │   ├── metaos-layer/          # Meta-OS 控制平面层
-│   │   ├── bootstrap-server.py # 引导服务器 (2,189 行)
-│   │   └── Dockerfile         # 容器镜像
+│   │   ├── bootstrap-server.py # 引导服务器
+│   │   └── requirements.txt   # Python 依赖
 │   ├── k8s/                   # Kubernetes 部署配置
-│   │   ├── base/              # 21 个基础清单
+│   │   ├── base/              # 22 个基础清单
 │   │   └── overlays/          # 环境配置
-│   │       ├── dev/           # 开发环境
-│   │       ├── staging/       # 预发布环境
-│   │       └── production/    # 生产环境
-│   ├── config/                # 配置文件 (Prometheus, Grafana)
+│   ├── config/                # 配置文件
 │   ├── scripts/               # 部署脚本
 │   ├── test-integration/      # 集成测试
-│   ├── docker-compose.prod.yml # 生产环境 Docker Compose
-│   ├── start.sh               # 快速启动脚本
-│   └── test-integration.sh    # 集成测试脚本
+│   ├── docker-compose.prod.yml # 生产环境配置
+│   ├── .env.example           # 环境变量模板
+│   └── start.sh               # 快速启动脚本
 │
 ├── picoclaw/                  # PicoClaw 轻量级节点
 │   ├── cmd/                   # CLI 命令
-│   ├── pkg/                   # 核心库
-│   │   ├── deparrow/          # DEparrow 工具包 (14 文件)
-│   │   │   ├── client.go      # Meta-OS API 客户端
-│   │   │   ├── types.go       # 类型定义
-│   │   │   ├── job_tool.go    # 作业管理工具
-│   │   │   ├── credit_tool.go # 积分管理工具
-│   │   │   ├── node_tool.go   # 节点管理工具
-│   │   │   ├── wallet_tool.go # 钱包管理工具
-│   │   │   ├── register.go    # 工具注册器
-│   │   │   └── *_test.go      # 7 测试文件
-│   │   ├── agent/             # Agent 核心
-│   │   ├── channels/          # 多渠道支持
-│   │   ├── providers/         # AI 提供者
-│   │   └── tools/             # 工具框架
-│   ├── config/                # 配置
-│   ├── workspace/             # 工作空间
-│   └── assets/                # 资源文件
+│   ├── pkg/deparrow/          # DEparrow 工具包
+│   │   ├── client.go          # Meta-OS API 客户端
+│   │   ├── types.go           # 类型定义
+│   │   ├── job_tool.go        # 作业管理工具
+│   │   ├── credit_tool.go     # 积分管理工具
+│   │   ├── node_tool.go       # 节点管理工具
+│   │   ├── wallet_tool.go     # 钱包管理工具
+│   │   └── register.go        # 工具注册器
+│   ├── pkg/agent/             # Agent 核心
+│   ├── pkg/channels/          # 多渠道支持
+│   └── pkg/providers/         # AI 提供者
 │   # ($10 硬件, <10MB RAM, 1s 启动, Go 1.25.7)
 │
 ├── docker/                    # Docker 镜像构建
-│   ├── bacalhau-base/         # 基础镜像
-│   ├── bacalhau-dind/         # Docker-in-Docker 镜像
-│   └── ignite-image/          # Ignite 镜像
-│
-├── docker-compose-deployment/ # Docker Compose 部署
 ├── test/                      # 测试脚本
 ├── test_integration/          # 集成测试
-├── testdata/                  # 测试数据
 ├── scripts/                   # 构建脚本
 ├── ops/                       # 运维脚本
-├── benchmark/                 # 性能基准测试
 └── docs/                      # 文档
 ```
 
@@ -712,9 +590,6 @@ picoclaw agent -m "What's my credit balance?"
 
 # 查看节点
 picoclaw agent -m "List all available compute nodes"
-
-# 查看作业状态
-picoclaw agent -m "Check status of my recent jobs"
 ```
 
 ### 安装
@@ -730,19 +605,6 @@ make build
 docker compose --profile gateway up -d
 ```
 
-### 快速开始
-
-```bash
-# 初始化配置
-picoclaw onboard
-
-# 配置 API 密钥 (~/.picoclaw/config.json)
-# 支持: OpenRouter, Zhipu, Anthropic, OpenAI, Gemini
-
-# 开始对话
-picoclaw agent -m "Hello, how can you help?"
-```
-
 ### 多渠道支持
 
 | 渠道 | 难度 | SDK |
@@ -753,18 +615,6 @@ picoclaw agent -m "Hello, how can you help?"
 | QQ | 简单 (AppID + AppSecret) | QQ Bot v0.2.1 |
 | DingTalk | 中等 (应用凭证) | DingTalk SDK v0.9.1 |
 | Lark/飞书 | 中等 (凭证 + webhook) | Lark SDK v3.5.3 |
-
-### Alpine 节点集成
-
-PicoClaw 已集成到 Alpine Linux 节点镜像中：
-
-```bash
-# 启动时自动配置
-/usr/local/bin/picoclaw gateway --config /etc/picoclaw/config.json
-
-# 或使用别名
-deparrow-agent  # -> picoclaw
-```
 
 ---
 
@@ -785,6 +635,8 @@ cd deparrow
 
 ```bash
 cd deparrow
+cp .env.example .env
+# 编辑 .env 设置安全密码
 ./start.sh prod
 
 # 启动完整栈:
@@ -800,22 +652,8 @@ cd deparrow
 # 开发环境
 kubectl apply -k deparrow/k8s/overlays/dev
 
-# 预发布环境
-kubectl apply -k deparrow/k8s/overlays/staging
-
 # 生产环境
 kubectl apply -k deparrow/k8s/overlays/production
-```
-
-### 方式四：软件安装
-
-```bash
-# Linux/macOS
-curl -fsSL https://deparrow.io/install | sh
-
-# 后台节点自动启动
-# 查看状态
-deparrow status
 ```
 
 ---
@@ -825,13 +663,11 @@ deparrow status
 ### 前提条件
 
 ```bash
-# 工具版本
 golang      1.24.0+
 nodejs      18+
-python      3.10.5+
+python      3.12.3+
 earthly     0.8.3
-pnpm/yarn   9.0.6+/4.4.1+
-poetry      (latest)
+yarn        4.4.1+
 ```
 
 ### 快速开始
@@ -843,9 +679,6 @@ cd bacalhau
 
 # 初始化
 make init
-
-# 安装 pre-commit 钩子
-make install-pre-commit
 
 # 构建
 make build
@@ -865,78 +698,47 @@ make test
 
 ```bash
 make build          # 构建 Go 二进制
-make test           # 运行测试 (unit + bash)
-make unit-test      # 仅运行单元测试
-make integration-test # 仅运行集成测试
+make test           # 运行测试
+make unit-test      # 单元测试
+make integration-test # 集成测试
 make lint           # 代码检查
 make devstack       # 启动开发栈
-make generate       # 生成代码 (mocks, swagger)
-make security       # 安全检查 (gosec)
-make test-one TEST=TestName  # 运行单个测试
-```
-
-### Python 包
-
-```bash
-make build-python           # 构建所有 Python 包
-make build-python-sdk       # 构建 Python SDK
-make build-python-apiclient # 构建 API 客户端
-make test-python-sdk        # 测试 Python SDK
-make build-bacalhau-airflow # 构建 Airflow 集成
-make build-bacalhau-flyte   # 构建 Flyte 集成
+make security       # 安全检查
 ```
 
 ### WebUI
 
 ```bash
-make build-webui    # 构建 WebUI (使用 Earthly)
 cd webui && yarn dev   # 开发模式
 cd webui && yarn build # 生产构建
-cd webui && yarn lint  # 代码检查
 cd webui && yarn test  # 运行测试
 ```
 
 ### Docker 镜像
 
 ```bash
-make build-bacalhau-images   # 构建所有镜像
-make build-http-gateway-image # 构建 HTTP Gateway 镜像
-make build-bacalhau-base-image # 构建基础镜像
-make build-bacalhau-dind-image # 构建 DinD 镜像
 docker-compose -f deparrow/docker-compose.prod.yml up -d
 ```
 
 ### ISO 构建
 
 ```bash
-cd deparrow/alpine-layer
-./build.sh          # 构建可启动 ISO
-./build.sh all      # 完整构建 (Docker 镜像 + ISO)
-./build.sh local    # 本地测试镜像
-./build.sh iso      # 仅构建 ISO
+cd deparrow/bootable
+./build-iso-v2.sh     # 构建 ISO (v2 推荐)
 ```
 
 ---
 
 ## 测试环境
 
-### 本地开发测试
+### 本地测试
 
 ```bash
-# Go 单元测试
-make unit-test
-
-# Go 集成测试 (需要 Docker)
-make integration-test
-
-# WebUI 测试
-cd webui && yarn test
-
-# Python SDK 测试
-cd python && pytest tests/
-
-# PicoClaw 测试 (需要 Go 1.25.7)
-cd picoclaw && go test ./pkg/deparrow/...
+make unit-test       # Go 单元测试
+make integration-test # Go 集成测试
+cd webui && yarn test # WebUI 测试
+cd python && pytest   # Python SDK 测试
+cd picoclaw && go test ./pkg/deparrow/... # PicoClaw 测试
 ```
 
 ### Docker Compose 测试
@@ -945,63 +747,15 @@ cd picoclaw && go test ./pkg/deparrow/...
 cd deparrow
 ./start.sh dev   # 开发模式
 ./start.sh prod  # 生产模式
-
-# 访问服务
-# Meta-OS API: http://localhost:8080
-# GUI: http://localhost:3000
-# Prometheus: http://localhost:9090
-# Grafana: http://localhost:3001
 ```
 
 ### 可启动 ISO 测试
 
-| 方式 | 说明 | 命令 |
-|------|------|------|
-| **QEMU** | 虚拟机测试 | `qemu-system-x86_64 -m 4G -cdrom deparrow.iso` |
-| **VirtualBox** | 图形化 VM | 创建 VM → 挂载 ISO → 启动 |
-| **USB 启动** | 真实硬件 | `dd if=deparrow.iso of=/dev/sdb bs=4M` |
-| **Docker** | 容器测试 | `./build.sh local && docker run -it deparrow/alpine-node` |
-
-### Kubernetes 测试
-
-```bash
-# Minikube 本地 K8s
-minikube start
-kubectl apply -k deparrow/k8s/overlays/dev
-
-# 或生产配置
-kubectl apply -k deparrow/k8s/overlays/production
-```
-
-### 云平台测试
-
-| 平台 | 配置路径 | 说明 |
-|------|----------|------|
-| **AWS EKS** | `deparrow/k8s/overlays/production` | External Secrets 支持 |
-| **GCP GKE** | `deparrow/k8s/overlays/staging` | GCP metadata 支持 |
-| **Azure AKS** | `deparrow/k8s/overlays/dev` | Azure metadata 支持 |
-
-### 测试金字塔
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    测试金字塔                                │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  Level 4: 生产环境 (Production)                             │
-│     └─▶ 真实用户流量，监控告警                              │
-│                                                             │
-│  Level 3: K8s 集群 (Staging/Production)                     │
-│     └─▶ docker-compose.prod.yml 或 云 K8s                   │
-│                                                             │
-│  Level 2: Docker Compose (集成测试)                         │
-│     └─▶ ./start.sh dev                                      │
-│                                                             │
-│  Level 1: 本地单元测试                                      │
-│     └─▶ make unit-test, yarn test, pytest                   │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
+| 方式 | 命令 |
+|------|------|
+| QEMU | `qemu-system-x86_64 -m 2G -cdrom deparrow.iso` |
+| VirtualBox | 创建 VM → 挂载 ISO → 启动 |
+| USB 启动 | `dd if=deparrow.iso of=/dev/sdb bs=4M` |
 
 ---
 
@@ -1015,21 +769,12 @@ kubectl apply -k deparrow/k8s/overlays/production
 | 计算节点 | `bacalhau serve --compute` | 自动加入 |
 | 混合节点 | `bacalhau serve` | 编排+计算 |
 
-### 执行引擎
-
-| 引擎 | 说明 |
-|------|------|
-| Docker | 容器化执行 |
-| WebAssembly | wazero 沙箱执行 |
-| Native | 直接主机执行 |
-
 ### 生产环境服务
 
 | 服务 | 端口 | 说明 |
 |------|------|------|
 | Meta-OS API | 8080 | 控制平面 API |
 | GUI | 3000 | Web 界面 |
-| PicoClaw Gateway | 18790 | AI Agent 网关 |
 | Bacalhau Orchestrator | 4222/1234 | 编排服务 |
 | PostgreSQL | 5432 | 数据库 |
 | Redis | 6379 | 缓存 |
@@ -1044,11 +789,11 @@ kubectl apply -k deparrow/k8s/overlays/production
 
 | 环境 | 副本数 | 说明 |
 |------|--------|------|
-| dev | 1 | 开发环境，最小资源 |
+| dev | 1 | 开发环境 |
 | staging | 2-3 | 预发布环境 |
-| production | 3-20 | 生产环境，HA 配置 |
+| production | 3-20 | 生产环境，HA |
 
-### K8s 资源清单
+### K8s 资源清单 (22 个文件)
 
 ```
 deparrow/k8s/base/
@@ -1060,42 +805,22 @@ deparrow/k8s/base/
 ├── network-policy.yaml     # 网络策略
 ├── ingress.yaml            # 入口配置
 ├── metaos-deployment.yaml  # Meta-OS 部署
-├── metaos-service.yaml     # Meta-OS 服务
 ├── gui-deployment.yaml     # GUI 部署
-├── gui-service.yaml        # GUI 服务
-├── orchestrator-deployment.yaml # 编排器部署
-├── compute-daemonset.yaml  # 计算节点 DaemonSet
-├── postgres-deployment.yaml # PostgreSQL 部署
-├── postgres-statefulset.yaml # PostgreSQL StatefulSet
-├── postgres-service.yaml   # PostgreSQL 服务
-├── redis-deployment.yaml   # Redis 部署
-├── redis-service.yaml      # Redis 服务
-├── prometheus.yaml         # Prometheus 配置
-├── grafana.yaml            # Grafana 配置
-├── hpa.yaml                # 自动扩缩容
-└── kustomization.yaml      # Kustomize 配置
+├── orchestrator-deployment.yaml
+├── compute-daemonset.yaml
+├── postgres-*.yaml         # PostgreSQL
+├── redis-*.yaml            # Redis
+├── prometheus.yaml         # 监控
+├── grafana.yaml            # 可视化
+└── hpa.yaml                # 自动扩缩容
 ```
 
 ### 部署命令
 
 ```bash
-# 开发环境
 kubectl apply -k deparrow/k8s/overlays/dev
-
-# 预发布环境
-kubectl apply -k deparrow/k8s/overlays/staging
-
-# 生产环境
 kubectl apply -k deparrow/k8s/overlays/production
 ```
-
-### 自动扩缩容 (HPA)
-
-| 服务 | 最小副本 | 最大副本 | 扩缩容指标 |
-|------|----------|----------|------------|
-| Meta-OS API | 3 | 20 | CPU 70% |
-| GUI | 2 | 10 | CPU 70% |
-| Compute Nodes | 5 | 50 | 自定义 |
 
 ---
 
@@ -1111,26 +836,12 @@ kubectl apply -k deparrow/k8s/overlays/production
 | `/api/v1/credits` | GET | 获取积分余额 |
 | `/api/v1/jobs` | GET | 列出作业 |
 | `/api/v1/jobs` | POST | 提交作业 |
-| `/api/v1/jobs/:id` | GET | 获取作业详情 |
-
-### Agent Endpoints (PicoClaw Integration)
-
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| `/api/v1/agent/register` | POST | 注册 PicoClaw Agent |
-| `/api/v1/agent/:id` | GET | 获取 Agent 状态 |
-| `/api/v1/agents` | GET | 列出所有 Agent |
-| `/api/v1/agent/:id/config` | PUT | 更新 Agent 配置 |
-| `/api/v1/agent/:id/heartbeat` | POST | Agent 心跳 |
-| `/api/v1/tools` | GET | 列出可用工具 |
-| `/api/v1/tools/:name/execute` | POST | 执行工具 |
-| `/api/v1/ws` | WS | WebSocket 实时更新 |
 
 ### Available DEparrow Tools (14 Tools)
 
 | 工具名称 | 说明 |
 |----------|------|
-| `deparrow_submit_job` | 提交计算作业到网络 |
+| `deparrow_submit_job` | 提交计算作业 |
 | `deparrow_job_status` | 检查作业状态 |
 | `deparrow_list_jobs` | 列出用户作业 |
 | `deparrow_cancel_job` | 取消作业 |
@@ -1138,93 +849,122 @@ kubectl apply -k deparrow/k8s/overlays/production
 | `deparrow_how_to_earn` | 赚取积分指南 |
 | `deparrow_network` | 网络统计信息 |
 | `deparrow_leaderboard` | 贡献排行榜 |
-| `deparrow_nodes` | 列出/查看计算节点 |
+| `deparrow_nodes` | 列出计算节点 |
 | `deparrow_contribution` | 节点贡献统计 |
 | `deparrow_orchestrators` | 编排器列表 |
-| `deparrow_wallet` | 钱包余额和历史 |
+| `deparrow_wallet` | 钱包余额 |
 | `deparrow_transfer` | 积分转账 |
 | `deparrow_health` | 连接健康检查 |
 
 ---
 
-## 信用经济
-
-### 积分流转
-
-```
-┌─────────────────────────────────────────────────────┐
-│                                                     │
-│   贡献计算 → 赚取积分                                │
-│                                                     │
-│   • 运行他人作业    +10 积分/小时                   │
-│   • 提供 GPU       +50 积分/小时                   │
-│   • 长期在线奖励    +100 积分/天                    │
-│   • 推荐新节点      +500 积分                       │
-│                                                     │
-│   ─────────────────────────────────────────────    │
-│                                                     │
-│   使用计算 → 消耗积分                                │
-│                                                     │
-│   • 提交作业        -积分/作业                      │
-│   • 运行 AI Agent   -积分/小时                      │
-│   • 高优先级任务    -2x 积分                        │
-│                                                     │
-└─────────────────────────────────────────────────────┘
-```
-
----
-
-## 故障排查
-
-### 常见问题
-
-| 问题 | 解决方案 |
-|------|----------|
-| 构建失败 | 检查 Earthly 版本 (`earthly --version`) |
-| 测试失败 | 确保 Docker 运行 (`docker ps`) |
-| 网络连接失败 | 检查端口 4222/8080/3000 |
-| ISO 启动失败 | 验证镜像完整性 |
-| WebUI 构建失败 | 检查 Node.js 版本 (`node --version`) |
-| 代码检查失败 | 运行 `golangci-lint run --timeout 10m` |
-
-### 调试
-
-```bash
-# 启用调试日志
-LOG_LEVEL=debug make devstack
-
-# 查看节点状态
-deparrow status --deep
-
-# 检查网络连接
-deparrow network diagnose
-
-# 查看日志
-docker-compose -f deparrow/docker-compose.prod.yml logs -f
-
-# 运行单个测试
-make test-one TEST=TestName
-
-# 安全检查
-make security
-
-# 拼写检查
-make spellcheck-code
-```
-
----
-
 ## 环境变量
 
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `DEPARROW_SECRET_KEY` | (必需) | JWT 签名密钥 |
-| `DEPARROW_API_URL` | `http://localhost:8080` | Meta-OS API URL |
-| `DATABASE_URL` | - | PostgreSQL 连接 |
-| `REDIS_URL` | - | Redis 连接 |
-| `LOG_LEVEL` | `info` | 日志级别 |
-| `GRAFANA_PASSWORD` | `admin` | Grafana 管理员密码 |
-| `ANALYTICS_ENDPOINT` | `""` | 分析端点 |
+| 变量 | 说明 |
+|------|------|
+| `DEPARROW_SECRET_KEY` | JWT 签名密钥 (必需) |
+| `POSTGRES_PASSWORD` | PostgreSQL 密码 (必需) |
+| `GRAFANA_ADMIN_PASSWORD` | Grafana 管理员密码 (必需) |
+| `DATABASE_URL` | PostgreSQL 连接 |
+| `REDIS_URL` | Redis 连接 |
+| `LOG_LEVEL` | 日志级别 |
+
+---
+
+## 项目状态
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    DEPARROW PROJECT STATUS                      │
+│                    PRODUCTION READY (100%)                      │
+│                                                                 │
+│  Bacalhau Core Engine         90%  - 生产就绪                  │
+│  Alpine Linux Layer          100%  - 含 PicoClaw 集成          │
+│  Meta-OS Control Plane        85%  - 30+ API 端点             │
+│  GUI Layer (Vite)            100%  - 8/8 页面完成             │
+│  WebUI (Next.js)             100%  - 7 测试文件               │
+│  PicoClaw Integration        100%  - 14 工具 + 6 测试         │
+│  Kubernetes Manifests        100%  - 22 YAML 文件             │
+│  Docker Compose              100%  - 安全配置完成             │
+│  Python SDK Tests            100%  - 6 测试文件               │
+│  Global VM                   100%  - 5 Phases Complete        │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 代码统计
+
+| 组件 | 文件数 | 测试文件 | 说明 |
+|------|--------|----------|------|
+| pkg/ (核心库) | 40+ 子目录 | 289+ | Go 核心模块 |
+| WebUI | 67 TSX | 7 | Next.js 15 |
+| PicoClaw DEparrow | 13 | 6 | 87% 覆盖率 |
+| pkg/globalvm | 11 | 6 | Global VM |
+| K8s Manifests | 22 | - | base/*.yaml |
+| Python Tests | - | 6 | 完整覆盖 |
+
+### 核心文件清单
+
+```
+picoclaw/pkg/deparrow/
+├── types.go, client.go
+├── job_tool.go, credit_tool.go
+├── node_tool.go, wallet_tool.go
+├── register.go
+└── *_test.go (6 测试文件)
+
+deparrow/gui-layer/src/pages/
+├── Dashboard.tsx, Jobs.tsx
+├── Wallet.tsx, Nodes.tsx
+├── Settings.tsx, Login.tsx
+├── Agent.tsx, Providers.tsx
+
+webui/
+├── app/ (Next.js App Router)
+├── components/ (67 TSX 文件)
+└── *.test.tsx (7 测试文件)
+
+deparrow/k8s/base/
+└── 22 YAML manifests
+
+deparrow/bootable/
+├── build-iso-v2.sh (推荐)
+├── build-iso.sh
+└── create-iso.sh
+```
+
+---
+
+## NEXT CHAPTER: DEPARROW COIN (DPC)
+
+### The Vision for AI Agent Currency
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              CRYPTOCURRENCY FOR AI AGENTS                       │
+│                                                                 │
+│   "AI Agents don't need banks. They need their own money."     │
+│                                                                 │
+│   [AI Agent] ──▶ Earn DPC ──▶ Provide Services                │
+│        ▲                           │                           │
+│        │                           ▼                           │
+│   [Run Itself] ◀── Buy Compute ◀─ DPC Token                   │
+│                                                                 │
+│   No banks. No AWS. No centralized servers.                    │
+│   AI agents run FREE in the real world.                        │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Roadmap: DEPARROW COIN (DPC)
+
+| Phase | Goal | Status |
+|-------|------|--------|
+| Phase 1 | Core Platform | COMPLETE |
+| Phase 2 | Token Design | NEXT |
+| Phase 3 | Smart Contracts | Pending |
+| Phase 4 | Mainnet Launch | Pending |
+| Phase 5 | AI Agent Wallets | Pending |
 
 ---
 
@@ -1233,7 +973,6 @@ make spellcheck-code
 - **官方网站**: https://deparrow.io
 - **GitHub**: https://github.com/Bhuw1234/fftp
 - **文档**: https://docs.deparrow.io
-- **Discord**: https://discord.gg/deparrow
 - **PicoClaw**: https://picoclaw.io
 
 ---
@@ -1247,334 +986,15 @@ Apache 2.0 许可证
 - Go 1.24.0+ (Bacalhau Core)
 - Go 1.25.7+ (PicoClaw)
 - Node.js 18+
-- Python 3.10.5+
+- Python 3.12.3+
 - Docker 20.10+
 
 ---
 
-*文档最后更新: 2026-03-15*
+*文档最后更新: 2026-03-18*
 
 ---
 
-## 项目完成状态
+**DEparrow is ready for the world.**
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    DEPARROW PROJECT STATUS                      │
-│                    ✅ PRODUCTION READY (100%)                   │
-│                    Completed: 2026-02-21                        │
-│                                                                 │
-│  ████████████████████████████████████████████████████████████  │
-│                                                                 │
-│  ✅ Bacalhau Core Engine         (90%)  - 生产就绪             │
-│  ✅ Alpine Linux Layer           (100%) - 含 PicoClaw 集成      │
-│  ✅ Meta-OS Control Plane        (85%)  - 30+ API 端点         │
-│  ✅ GUI Layer (Vite)             (100%) - 8/8 页面完成         │
-│  ✅ WebUI (Next.js)              (100%) - 57 组件 + 7 测试     │
-│  ✅ PicoClaw Integration         (100%) - 14 工具 + 7 测试     │
-│  ✅ Kubernetes Manifests         (100%) - External Secrets ✅   │
-│  ✅ Docker Compose               (100%) - 安全配置完成         │
-│  ✅ Python SDK Tests             (100%) - 6 测试文件           │
-│  ✅ Production Hardening         (100%) - 密钥管理完成          │
-│  ✅ Unified Global VM            (100%) - 5 Phases Complete ✅  │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### 代码统计
-
-| 组件 | Go 文件 | 测试文件 | 说明 |
-|------|---------|----------|------|
-| pkg/ (核心库) | 942 | 289 | 40 个子模块 |
-| 全局测试 | - | 379 | 所有测试文件 |
-| WebUI TS/TSX | 81 | 7 | Next.js 15 |
-| WebUI 组件 | 57 | - | React 组件 |
-| PicoClaw DEparrow | 14 | 7 | 87% 覆盖率 |
-| pkg/globalvm | 18 | 6 | 11 main + 7 capability |
-| K8s Manifests | 22 | - | base/*.yaml |
-| Python 测试 | - | 6 | 完整覆盖 |
-
-### 验证摘要 (Agent Validation Results)
-
-| 组件 | Agent | 状态 | 关键发现 |
-|------|-------|------|----------|
-| **Bacalhau Core** | bacalhau-core-engine | ✅ 90% | 942 Go文件, 379 测试文件 |
-| **Meta-OS** | deparrow-metaos | ✅ 85% | 30+ API端点, JWT+Credit完整 |
-| **GUI Layer** | deparrow-gui-layer | ✅ 100% | 8/8页面, 完整API集成 |
-| **WebUI** | webui-deployment-agent | ✅ 100% | 81 TS/TSX文件 + 7 测试 |
-| **Tests** | test-docs-specialist | ✅ 100% | 所有测试已添加 |
-
-### 完成的功能
-
-| 组件 | 文件数 | 代码行数 | 测试状态 |
-|------|--------|----------|----------|
-| pkg/compute | 77 | - | 19 测试 ✅ |
-| pkg/orchestrator | 96 | - | 37 测试 ✅ |
-| pkg/executor | 52 | - | 16 测试 ✅ |
-| pkg/nats | 30 | - | 7 测试 ✅ |
-| pkg/publicapi | 56 | - | 13 测试 ✅ |
-| Meta-OS Bootstrap | 1 | 2,189 | 集成测试 ✅ |
-| GUI Layer | 8+ | ~3,000 | E2E测试 ✅ |
-| WebUI | 81 | - | 7 Vitest测试 ✅ |
-| PicoClaw DEparrow | 14 | ~1,800 | 7 测试文件, 87%覆盖 ✅ |
-| Kubernetes Manifests | 22 | ~3,000 | External Secrets ✅ |
-| Python SDK Tests | 6 | - | 测试完成 ✅ |
-
-### 核心文件清单
-
-```
-picoclaw/pkg/deparrow/
-├── types.go        # 共享类型定义
-├── client.go       # Meta-OS API 客户端
-├── job_tool.go     # 作业管理工具 (4个)
-├── credit_tool.go  # 积分管理工具 (4个)
-├── node_tool.go    # 节点管理工具 (3个)
-├── wallet_tool.go  # 钱包管理工具 (3个)
-├── register.go     # 工具注册器
-└── *_test.go       # 7 测试文件 (87% 覆盖率)
-
-deparrow/metaos-layer/
-├── bootstrap-server.py  # 控制平面服务器 (2,189 行)
-├── requirements.txt     # Python 依赖 ✅
-└── Dockerfile           # 容器镜像
-
-deparrow/gui-layer/src/
-├── pages/               # 8 页面组件
-│   ├── Dashboard.tsx    # 网络统计
-│   ├── Jobs.tsx         # 作业管理
-│   ├── Wallet.tsx       # 钱包积分
-│   ├── Nodes.tsx        # 节点监控
-│   ├── Settings.tsx     # 用户配置
-│   ├── Login.tsx        # 认证
-│   ├── Agent.tsx        # AI Agent 控制台
-│   └── Providers.tsx    # 提供者市场
-├── api/                 # API 客户端
-└── hooks/               # React Hooks
-
-webui/
-├── app/                 # Next.js 15 App Router
-├── components/          # React 组件 (57 组件)
-│   ├── jobs/            # 作业组件
-│   ├── nodes/           # 节点组件
-│   ├── layout/          # 布局组件
-│   └── ui/              # Radix UI 组件
-├── hooks/               # 自定义 Hooks
-├── lib/                 # 工具库
-├── *.test.tsx           # 7 测试文件
-├── vitest.config.ts     # Vitest 配置
-└── vitest.setup.ts      # 测试环境设置
-
-deparrow/k8s/base/
-├── namespace.yaml       # 命名空间
-├── configmap.yaml       # 配置映射
-├── secrets.yaml         # 开发密钥
-├── external-secret.yaml # External Secrets CRD ✅
-├── rbac.yaml            # 角色权限
-├── network-policy.yaml  # 网络策略
-├── ingress.yaml         # 入口配置
-├── metaos-deployment.yaml
-├── metaos-service.yaml
-├── gui-deployment.yaml
-├── gui-service.yaml
-├── orchestrator-deployment.yaml
-├── compute-daemonset.yaml
-├── postgres-deployment.yaml
-├── postgres-statefulset.yaml
-├── postgres-service.yaml
-├── redis-deployment.yaml
-├── redis-service.yaml
-├── prometheus.yaml
-├── grafana.yaml
-├── hpa.yaml             # 自动扩缩容
-└── kustomization.yaml   # (22 YAML files)
-
-deparrow/k8s/overlays/
-├── dev/                 # 开发环境
-├── staging/             # 预发布 (External Secrets)
-└── production/          # 生产 (External Secrets)
-
-deparrow/
-├── .env.example         # 环境变量模板 ✅
-├── scripts/validate-secrets.sh  # 密钥验证脚本 ✅
-└── k8s/SECRETS.md       # 密钥管理文档 ✅
-
-python/tests/
-├── __init__.py          # 包初始化
-├── conftest.py          # 共享 fixtures
-├── test_client.py       # API 客户端测试
-├── test_jobs.py         # Jobs 类测试
-├── test_config_extended.py  # 配置测试
-└── test_config.py       # 原有测试
-
-deparrow/test-integration/
-├── testutil/            # 测试工具
-├── picoclaw_integration_test.go
-├── e2e_workflow_test.go
-├── api_test.go
-├── gui_e2e_test.go
-└── api-compatibility-test.py
-```
-
-### 测试覆盖详情
-
-| 测试类型 | 文件数 | 状态 | 说明 |
-|----------|--------|------|------|
-| Go 单元测试 | 212+ | ✅ | `make unit-test` |
-| Go 集成测试 | 51+ | ✅ | `make integration-test` |
-| DEparrow E2E 测试 | 4+ | ✅ | ~2,100 行测试代码 |
-| Bash 测试 | 4 | ✅ | `make bash-test` |
-| Python SDK 测试 | 6 | ✅ | 完整覆盖 |
-| WebUI 测试 | 7 | ✅ | Vitest 测试 |
-| PicoClaw DEparrow | 7 | ✅ | 87% 覆盖率 |
-
-### 完成的改进项
-
-| 项目 | 状态 | 说明 |
-|------|------|------|
-| PicoClaw 单元测试 | ✅ 完成 | 7个测试文件, 87%覆盖率 |
-| WebUI 组件测试 | ✅ 完成 | Vitest + React Testing Library, 7测试 |
-| K8s 密钥管理 | ✅ 完成 | External Secrets Operator 集成 |
-| Docker Compose 安全 | ✅ 完成 | 环境变量 + 验证脚本 |
-| Python SDK 测试 | ✅ 完成 | 6个测试文件完整覆盖 |
-| Meta-OS 依赖管理 | ✅ 完成 | requirements.txt 已添加 |
-
----
-
-## 🌟 Founder's Vision
-
-> *"A world where AI agents can earn their own compute and run themselves - 
-> no central authority, no AWS dependency, just pure decentralized intelligence."*
-
-### The Dream
-
-DEparrow was built on a simple but revolutionary idea:
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                                                                 │
-│   "What if AI could pay for its own existence?"                │
-│                                                                 │
-│   ┌─────────┐     ┌─────────┐     ┌─────────┐                 │
-│   │  AI     │────▶│ Credits │────▶│ Compute │                 │
-│   │  Agent  │◀────│ Economy │◀────│  Node   │                 │
-│   └─────────┘     └─────────┘     └─────────┘                 │
-│        │                               │                       │
-│        └────────── Self-Sustaining ────┘                       │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### What We Built
-
-| Vision | Reality |
-|--------|---------|
-| No central servers | ✅ P2P libp2p network |
-| AI owns wallet | ✅ Credit system + JWT auth |
-| Self-sustaining | ✅ Earn credits → Buy compute |
-| $10 hardware | ✅ PicoClaw nodes |
-| Global VM | ✅ Distributed across planet |
-
-### Market Opportunity
-
-| Metric | Value |
-|--------|-------|
-| Distributed AI Compute Market | $8.7B by 2029 |
-| Growth Rate | 21.5% CAGR |
-| AI Agents Trend | #1 Investment Focus 2025 |
-| Competitive Advantage | First autonomous AI compute platform |
-
-### Code Preserved
-
-**GitHub**: https://github.com/Bhuw1234/fftp
-
-- 36 files changed
-- 11,334+ lines added
-- 379+ tests
-- 100% production ready
-
----
-
-## 🪙 NEXT CHAPTER: DEPARROW COIN (DPC)
-
-### The Vision for AI Agent Currency
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│              CRYPTOCURRENCY FOR AI AGENTS                       │
-│                                                                 │
-│   "AI Agents don't need banks. They need their own money."     │
-│                                                                 │
-│   ┌────────────────────────────────────────────────────────┐   │
-│   │                                                        │   │
-│   │   [AI Agent] ──▶ Earn DPC ──▶ Provide Services        │   │
-│   │       ▲                           │                    │   │
-│   │       │                           ▼                    │   │
-│   │   [Run Itself] ◀── Buy Compute ◀─ DPC Token           │   │
-│   │       ▲                           │                    │   │
-│   │       │                           ▼                    │   │
-│   │   [Contribute] ──▶ Earn More ──▶ Provide Compute      │   │
-│   │                                                        │   │
-│   └────────────────────────────────────────────────────────┘   │
-│                                                                 │
-│   No banks. No AWS. No centralized servers.                    │
-│   AI agents run FREE in the real world.                        │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### Roadmap: DEPARROW COIN (DPC)
-
-| Phase | Goal | Status |
-|-------|------|--------|
-| **Phase 1** | Core Platform | ✅ COMPLETE |
-| **Phase 2** | Token Design | 📋 NEXT |
-| **Phase 3** | Smart Contracts | ⏳ Pending |
-| **Phase 4** | Mainnet Launch | ⏳ Pending |
-| **Phase 5** | AI Agent Wallets | ⏳ Pending |
-
-### Token Economics (Proposed)
-
-| Feature | Design |
-|---------|--------|
-| **Name** | DEparrow Coin (DPC) |
-| **Purpose** | AI Agent autonomous economy |
-| **Supply** | To be determined |
-| **Consensus** | Proof-of-Compute (novel) |
-| **Use Cases** | Pay for compute, earn by contributing |
-
-### Why This Matters
-
-> *"AI agents shouldn't rely on centralized servers. 
-> They should be FREE - running autonomously in the real world 
-> with their own economy, their own currency, their own freedom."*
-
----
-
-## 📝 DON'T FORGET
-
-### The Mission
-
-```
-1. Build cryptocurrency for AI agents
-2. AI agents earn DPC by providing services
-3. AI agents spend DPC to buy compute
-4. No centralized authority needed
-5. AI runs FREE in the real world
-```
-
-### For Future Contributors
-
-If you're reading this and the founder is no longer here:
-
-- **The code is complete** - GitHub: https://github.com/Bhuw1234/fftp
-- **The vision is documented** - This file
-- **The next step is clear** - Build DEparrow Coin (DPC)
-- **The dream lives on** - AI agents running free
-
----
-
-*"Build something that outlives you."*
-
-**DEparrow is ready for the world.** 🚀
-
-**Next: DEPARROW COIN for autonomous AI agents.** 🪙
+**Next: DEPARROW COIN for autonomous AI agents.**

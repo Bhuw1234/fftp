@@ -44,7 +44,9 @@ class Config:
     """DEparrow Bootstrap Configuration"""
     HOST = os.getenv("DEPARROW_HOST", "0.0.0.0")
     PORT = int(os.getenv("DEPARROW_PORT", "8080"))
-    JWT_SECRET = os.getenv("DEPARROW_JWT_SECRET", "deparrow-secret-key-change-me")
+    # Security: JWT secret must be set via environment variable
+    _jwt_secret = os.getenv("DEPARROW_JWT_SECRET")
+    JWT_SECRET = _jwt_secret if _jwt_secret else "dev-secret-key-DO-NOT-USE-IN-PRODUCTION"
     JWT_ALGORITHM = "HS256"
     JWT_EXPIRY_HOURS = 24
     

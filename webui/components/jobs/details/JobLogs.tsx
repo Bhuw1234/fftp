@@ -34,7 +34,6 @@ const JobLogs = ({ jobId }: { jobId: string | undefined }) => {
     if (!jobId || !isInitialized) return
 
     if (wsRef.current) {
-      console.log('WebSocket connection already exists')
       return
     }
 
@@ -43,12 +42,10 @@ const JobLogs = ({ jobId }: { jobId: string | undefined }) => {
     setIsStreamEnded(false)
 
     const wsUrl = `/api/v1/orchestrator/jobs/${jobId}/logs?follow=true`
-    console.log('Attempting to connect to:', wsUrl)
 
     const ws = new WebSocket(wsUrl)
 
     ws.onopen = () => {
-      console.log('WebSocket connected')
       setIsStreaming(true)
     }
 
@@ -65,19 +62,16 @@ const JobLogs = ({ jobId }: { jobId: string | undefined }) => {
           setError(`Server error: ${message.Err}`)
         }
       } catch (err) {
-        console.error('Error parsing message:', err)
         setLogs((prevLogs) => [...prevLogs, { type: 1, content: event.data }])
         setTimeout(scrollToBottom, 0)
       }
     }
 
-    ws.onerror = (event) => {
-      console.error('WebSocket error:', event)
+    ws.onerror = () => {
       setError('Failed to connect to log stream. Please try again.')
     }
 
     ws.onclose = (event) => {
-      console.log('WebSocket disconnected:', event)
       setIsStreaming(false)
       setIsStreamEnded(true)
       wsRef.current = null
@@ -93,7 +87,6 @@ const JobLogs = ({ jobId }: { jobId: string | undefined }) => {
 
   const disconnectWebSocket = useCallback(() => {
     if (wsRef.current) {
-      console.log('Closing WebSocket connection')
       wsRef.current.close()
       wsRef.current = null
       setIsStreaming(false)

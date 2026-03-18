@@ -77,4 +77,5 @@ webui/compiled/*
 .claude/settings.local.json
 
 # Go test binaries
-*.test
+*.test# Bootable ISO output (too large for GitHub)
+deparrow/bootable/output/

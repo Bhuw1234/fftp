@@ -105,7 +105,7 @@ services:
     image: ghcr.io/bacalhau-project/bacalhau:${BACALHAU_VERSION:-latest}
     container_name: deparrow-compute-1
     restart: unless-stopped
-    command: serve --compute --orchestrators=nats://bacalhau-orchestrator:4222
+    command: serve --compute --orchestrator nats://bacalhau-orchestrator:4222
     environment:
       - BACALHAU_NODE_NAME=compute-local-1
     volumes:
