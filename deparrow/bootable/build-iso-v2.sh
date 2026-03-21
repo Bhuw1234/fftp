@@ -1,10 +1,11 @@
 #!/bin/bash
 # DEparrow ISO Builder v2 - Auto-Join Network ISO
 # Creates a bootable ISO that auto-discovers and joins DEparrow network
+# Supports both Ethernet (DHCP) and WiFi (WPA2-PSK)
 
 set -e
 
-echo "=== DEparrow ISO Builder v2 - Auto-Join Network ==="
+echo "=== DEparrow ISO Builder v2 - Auto-Join Network with WiFi ==="
 
 BUILD_DIR="/tmp/deparrow-iso-v2"
 INITRAMFS_DIR="$BUILD_DIR/initramfs"
@@ -16,10 +17,16 @@ PROJECT_ROOT="/home/bhuwan/bacalhau"
 DEFAULT_BOOTSTRAP="bootstrap.deparrow.net:8080"
 FALLBACK_BOOTSTRAPS="bootstrap1.deparrow.net:8080,bootstrap2.deparrow.net:8080"
 
+# WiFi support flag
+ENABLE_WIFI=${ENABLE_WIFI:-true}
+
 # Cleanup
 rm -rf "$BUILD_DIR"
 mkdir -p "$INITRAMFS_DIR"/{bin,dev,etc,proc,sys,run,tmp,usr/bin,usr/sbin,var/log,var/lib/deparrow}
 mkdir -p "$INITRAMFS_DIR"/etc/deparrow/keys
+mkdir -p "$INITRAMFS_DIR"/lib/firmware
+mkdir -p "$INITRAMFS_DIR"/lib/x86_64-linux-gnu
+mkdir -p "$INITRAMFS_DIR"/lib64
 mkdir -p "$ISO_DIR/boot/grub"
 
 # Get kernel version
@@ -47,6 +54,222 @@ for applet in sh cat ls mkdir mount umount sleep echo ip ln rm mv cp chmod chown
     ln -sf busybox "$applet" 2>/dev/null || true
 done
 cd - > /dev/null
+
+# ============================================
+# WiFi Support
+# ============================================
+if [ "$ENABLE_WIFI" = "true" ]; then
+    echo "[*] Adding WiFi support..."
+    
+    # Helper function to copy binary with dependencies
+    copy_with_deps() {
+        local bin="$1"
+        local dest_dir="$2"
+        
+        if [ ! -f "$bin" ]; then
+            echo "    Warning: $bin not found"
+            return 1
+        fi
+        
+        # Copy the binary
+        cp "$bin" "$dest_dir/"
+        
+        # Copy dependencies
+        ldd "$bin" 2>/dev/null | while read line; do
+            lib=$(echo "$line" | grep -oE '/[^ ]+' | head -1)
+            if [ -n "$lib" ] && [ -f "$lib" ]; then
+                lib_name=$(basename "$lib")
+                lib_dir=$(dirname "$lib")
+                dest_lib_dir="$INITRAMFS_DIR$lib_dir"
+                mkdir -p "$dest_lib_dir"
+                cp -n "$lib" "$dest_lib_dir/" 2>/dev/null || true
+            fi
+        done
+        
+        # Copy the dynamic linker
+        if [ -f /lib64/ld-linux-x86-64.so.2 ]; then
+            cp -n /lib64/ld-linux-x86-64.so.2 "$INITRAMFS_DIR/lib64/" 2>/dev/null || true
+        fi
+    }
+    
+    # Copy wpa_supplicant
+    if [ -f /usr/sbin/wpa_supplicant ]; then
+        echo "    Adding wpa_supplicant..."
+        copy_with_deps /usr/sbin/wpa_supplicant "$INITRAMFS_DIR/usr/sbin"
+        cp /usr/sbin/wpa_supplicant "$INITRAMFS_DIR/bin/" 2>/dev/null || true
+    fi
+    
+    # Copy wpa_passphrase (for generating PSK)
+    if [ -f /usr/bin/wpa_passphrase ]; then
+        echo "    Adding wpa_passphrase..."
+        copy_with_deps /usr/bin/wpa_passphrase "$INITRAMFS_DIR/usr/bin"
+        cp /usr/bin/wpa_passphrase "$INITRAMFS_DIR/bin/" 2>/dev/null || true
+    fi
+    
+    # Copy wpa_cli
+    if [ -f /usr/sbin/wpa_cli ]; then
+        echo "    Adding wpa_cli..."
+        copy_with_deps /usr/sbin/wpa_cli "$INITRAMFS_DIR/usr/sbin"
+    fi
+    
+    # Copy iwconfig (wireless-tools) - simpler dependency chain
+    if [ -f /usr/sbin/iwconfig ]; then
+        echo "    Adding iwconfig..."
+        copy_with_deps /usr/sbin/iwconfig "$INITRAMFS_DIR/usr/sbin"
+        cp /usr/sbin/iwconfig "$INITRAMFS_DIR/bin/" 2>/dev/null || true
+        
+        # Also copy iwlist for scanning
+        if [ -f /usr/sbin/iwlist ]; then
+            copy_with_deps /usr/sbin/iwlist "$INITRAMFS_DIR/usr/sbin"
+            cp /usr/sbin/iwlist "$INITRAMFS_DIR/bin/" 2>/dev/null || true
+        fi
+    fi
+    
+    # Copy iw tool if available (more modern)
+    if command -v iw &> /dev/null; then
+        echo "    Adding iw tool..."
+        copy_with_deps "$(which iw)" "$INITRAMFS_DIR/usr/sbin"
+    fi
+    
+    # Copy essential shared libraries
+    echo "    Copying essential libraries..."
+    for lib in \
+        /lib/x86_64-linux-gnu/libnl-3.so.200 \
+        /lib/x86_64-linux-gnu/libnl-genl-3.so.200 \
+        /lib/x86_64-linux-gnu/libnl-route-3.so.200 \
+        /lib/x86_64-linux-gnu/libssl.so.3 \
+        /lib/x86_64-linux-gnu/libcrypto.so.3 \
+        /lib/x86_64-linux-gnu/libdbus-1.so.3 \
+        /lib/x86_64-linux-gnu/libiw.so.30 \
+        /lib/x86_64-linux-gnu/libm.so.6 \
+        /lib/x86_64-linux-gnu/libc.so.6 \
+        /lib/x86_64-linux-gnu/libpthread.so.0 \
+        /lib/x86_64-linux-gnu/libdl.so.2 \
+        /lib/x86_64-linux-gnu/librt.so.1 \
+    ; do
+        if [ -f "$lib" ]; then
+            lib_name=$(basename "$lib")
+            cp -n "$lib" "$INITRAMFS_DIR/lib/x86_64-linux-gnu/" 2>/dev/null || true
+        fi
+    done
+    
+    # Copy additional libraries that wpa_supplicant needs
+    for lib in \
+        /lib/x86_64-linux-gnu/libgcrypt.so.20 \
+        /lib/x86_64-linux-gnu/libgpg-error.so.0 \
+        /lib/x86_64-linux-gnu/libsystemd.so.0 \
+        /lib/x86_64-linux-gnu/libcap.so.2 \
+        /lib/x86_64-linux-gnu/liblz4.so.1 \
+        /lib/x86_64-linux-gnu/liblzma.so.5 \
+        /lib/x86_64-linux-gnu/libzstd.so.1 \
+        /lib/x86_64-linux-gnu/libpcsclite.so.1 \
+    ; do
+        if [ -f "$lib" ]; then
+            cp -n "$lib" "$INITRAMFS_DIR/lib/x86_64-linux-gnu/" 2>/dev/null || true
+        fi
+    done
+    
+    # Copy WiFi firmware - Essential chipsets only (optimized for size)
+    echo "    Copying WiFi firmware (optimized selection)..."
+    FIRMWARE_SIZE=0
+    
+    # Intel iwlwifi - Common chips only (NOT all 183 files!)
+    # Include only: 7260, 7265, 8265, 9000, AX200/201/210
+    mkdir -p "$INITRAMFS_DIR/lib/firmware"
+    
+    # Common Intel WiFi chips (most popular)
+    INTEL_FW_PATTERNS=(
+        "iwlwifi-7260-*"           # Intel 7260 (common laptop)
+        "iwlwifi-7265-*"           # Intel 7265
+        "iwlwifi-7265D-*"          # Intel 7265D
+        "iwlwifi-8265-*"           # Intel 8265 (common laptop)
+        "iwlwifi-9000-pu-b0-jf-b0-*"  # Intel 9260/9560
+        "iwlwifi-Qu-*"             # Intel AX200/AX201
+        "iwlwifi-cc-a0-*"          # Intel AX200
+        "iwlwifi-ty-a0-*"          # Intel AX210
+        "iwlwifi-3160-*"           # Intel 3160
+        "iwlwifi-3168-*"           # Intel 3168 (cheap adapters)
+    )
+    
+    for pattern in "${INTEL_FW_PATTERNS[@]}"; do
+        for fw in /lib/firmware/$pattern.ucode.zst; do
+            if [ -f "$fw" ]; then
+                # Only copy the latest version (highest number)
+                latest=$(ls /lib/firmware/$pattern.ucode.zst 2>/dev/null | sort -V | tail -1)
+                if [ "$fw" = "$latest" ]; then
+                    cp "$fw" "$INITRAMFS_DIR/lib/firmware/" 2>/dev/null || true
+                fi
+            fi
+        done
+    done
+    
+    # Copy pnvm files for Intel AX chips
+    for pnvm in /lib/firmware/iwlwifi-*.pnvm.zst; do
+        if [ -f "$pnvm" ]; then
+            case "$pnvm" in
+                *bz-b0*|*ty-a0*|*cc-a0*|*Qu-*)
+                    cp "$pnvm" "$INITRAMFS_DIR/lib/firmware/" 2>/dev/null || true
+                    ;;
+            esac
+        fi
+    done
+    
+    # Realtek rtlwifi (older chips - compact)
+    if [ -d /lib/firmware/rtlwifi ]; then
+        mkdir -p "$INITRAMFS_DIR/lib/firmware/rtlwifi"
+        cp -r /lib/firmware/rtlwifi/* "$INITRAMFS_DIR/lib/firmware/rtlwifi/" 2>/dev/null || true
+    fi
+    
+    # Realtek rtw88/rtw89 (newer chips) - only essential files
+    for dir in rtw88 rtw89; do
+        if [ -d "/lib/firmware/$dir" ]; then
+            mkdir -p "$INITRAMFS_DIR/lib/firmware/$dir"
+            # Only copy firmware files, not debug data
+            cp /lib/firmware/$dir/*.bin* "$INITRAMFS_DIR/lib/firmware/$dir/" 2>/dev/null || true
+        fi
+    done
+    
+    # Atheros ath9k_htc (USB adapters - small)
+    if [ -d /lib/firmware/ath9k_htc ]; then
+        mkdir -p "$INITRAMFS_DIR/lib/firmware/ath9k_htc"
+        cp -r /lib/firmware/ath9k_htc/* "$INITRAMFS_DIR/lib/firmware/ath9k_htc/" 2>/dev/null || true
+    fi
+    
+    # Atheros ath10k - only QCA6174 (very common in laptops)
+    if [ -d /lib/firmware/ath10k ]; then
+        mkdir -p "$INITRAMFS_DIR/lib/firmware/ath10k/QCA6174"
+        if [ -d "/lib/firmware/ath10k/QCA6174" ]; then
+            cp -r /lib/firmware/ath10k/QCA6174/* "$INITRAMFS_DIR/lib/firmware/ath10k/QCA6174/" 2>/dev/null || true
+        fi
+        # Also include QCA988X for older adapters
+        mkdir -p "$INITRAMFS_DIR/lib/firmware/ath10k/QCA988X"
+        if [ -d "/lib/firmware/ath10k/QCA988X" ]; then
+            cp -r /lib/firmware/ath10k/QCA988X/* "$INITRAMFS_DIR/lib/firmware/ath10k/QCA988X/" 2>/dev/null || true
+        fi
+    fi
+    
+    # MediaTek mt7601u (common cheap USB adapters)
+    for fw in /lib/firmware/mt7601u.bin*; do
+        if [ -f "$fw" ]; then
+            cp "$fw" "$INITRAMFS_DIR/lib/firmware/" 2>/dev/null || true
+        fi
+    done
+    
+    # Regulatory database (required for WiFi)
+    if [ -f /lib/firmware/regulatory.db ]; then
+        cp /lib/firmware/regulatory.db "$INITRAMFS_DIR/lib/firmware/" 2>/dev/null || true
+    fi
+    if [ -f /lib/firmware/regulatory.db.p7s ]; then
+        cp /lib/firmware/regulatory.db.p7s "$INITRAMFS_DIR/lib/firmware/" 2>/dev/null || true
+    fi
+    
+    # Create wpa_supplicant directory
+    mkdir -p "$INITRAMFS_DIR/var/run/wpa_supplicant"
+    
+    # Calculate total firmware size
+    TOTAL_FW_SIZE=$(du -sh "$INITRAMFS_DIR/lib/firmware" 2>/dev/null | awk '{print $1}')
+    echo "    WiFi firmware size: $TOTAL_FW_SIZE"
+fi
 
 # Copy curl if available (needed for API calls)
 if command -v curl &> /dev/null; then
@@ -127,6 +350,18 @@ parse_cmdline() {
             deparrow.token=*)
                 DEPARROW_TOKEN="${param#*=}"
                 ;;
+            wifi.ssid=*)
+                WIFI_SSID="${param#*=}"
+                ;;
+            wifi.password=*)
+                WIFI_PASSWORD="${param#*=}"
+                ;;
+            wifi.psk=*)
+                WIFI_PSK="${param#*=}"
+                ;;
+            wifi.priority=*)
+                WIFI_PRIORITY="${param#*=}"
+                ;;
         esac
     done
 }
@@ -160,39 +395,120 @@ log "Bootstrap: $BOOTSTRAP_ENDPOINT"
 echo ""
 
 # ============================================
-# PHASE 1: Network Configuration
+# PHASE 1: Network Configuration (Ethernet + WiFi)
 # ============================================
 log "[Phase 1] Configuring network..."
 
 ip link set lo up
 
-# Find and configure network interfaces
-IFACES=""
+# Find and classify network interfaces
+ETH_IFACES=""
+WIFI_IFACES=""
+
 for iface in /sys/class/net/*; do
     iface_name=$(basename "$iface")
     if [ "$iface_name" != "lo" ]; then
         log "  Found interface: $iface_name"
         ip link set "$iface_name" up 2>/dev/null
-        IFACES="$IFACES $iface_name"
+        
+        # Detect if interface is wireless
+        if [ -d "/sys/class/net/$iface_name/wireless" ] || \
+           iwconfig "$iface_name" 2>&1 | grep -q "IEEE 802.11"; then
+            WIFI_IFACES="$WIFI_IFACES $iface_name"
+            log "    (WiFi interface detected)"
+        else
+            ETH_IFACES="$ETH_IFACES $iface_name"
+        fi
     fi
 done
 
-if [ -z "$IFACES" ]; then
-    log_error "No network interfaces found!"
-else
-    # Start DHCP on all interfaces
-    log "[Phase 1] Requesting DHCP leases..."
-    for iface in $IFACES; do
+NETWORK_CONNECTED=false
+
+# Function to connect to WiFi
+connect_wifi() {
+    local iface="$1"
+    local ssid="$2"
+    local password="$3"
+    local psk="$4"
+    
+    log "  Attempting WiFi connection on $iface..."
+    log "    SSID: $ssid"
+    
+    # Kill any existing wpa_supplicant
+    killall wpa_supplicant 2>/dev/null || true
+    sleep 1
+    
+    # Generate PSK if password provided
+    if [ -n "$password" ] && [ -z "$psk" ]; then
+        psk=$(wpa_passphrase "$ssid" "$password" 2>/dev/null | grep "psk=" | head -1 | sed 's/.*psk=//')
+    fi
+    
+    # Create wpa_supplicant config
+    cat > /tmp/wpa_supplicant.conf << WPAEOF
+ctrl_interface=/var/run/wpa_supplicant
+ctrl_interface_group=0
+update_config=1
+
+network={
+    ssid="$ssid"
+    psk="$psk"
+    key_mgmt=WPA-PSK
+    proto=WPA2
+    pairwise=CCMP TKIP
+    group=CCMP TKIP
+    scan_ssid=1
+}
+WPAEOF
+    
+    # Start wpa_supplicant
+    mkdir -p /var/run/wpa_supplicant
+    wpa_supplicant -B -i "$iface" -c /tmp/wpa_supplicant.conf -D nl80211,wext 2>/dev/null
+    
+    if [ $? -ne 0 ]; then
+        log_error "Failed to start wpa_supplicant"
+        return 1
+    fi
+    
+    # Wait for connection
+    log "    Waiting for WiFi association..."
+    local wait=0
+    while [ $wait -lt 30 ]; do
+        if iwconfig "$iface" 2>/dev/null | grep -q "ESSID:\"$ssid\""; then
+            log "    WiFi associated successfully!"
+            
+            # Get DHCP lease
+            udhcpc -i "$iface" -s /bin/dhcp-script.sh -T 3 -t 5 -n 2>/dev/null
+            sleep 2
+            
+            if ip route | grep -q "default.*$iface"; then
+                log "    WiFi connected: $ssid"
+                return 0
+            fi
+            break
+        fi
+        sleep 1
+        wait=$((wait + 1))
+    done
+    
+    log_error "WiFi connection timeout"
+    return 1
+}
+
+# Try Ethernet first (preferred)
+if [ -n "$ETH_IFACES" ]; then
+    log "[Phase 1] Trying Ethernet DHCP..."
+    for iface in $ETH_IFACES; do
         udhcpc -i "$iface" -s /bin/dhcp-script.sh -T 3 -t 5 -n 2>/dev/null &
     done
     
-    # Wait for network
-    log "[Phase 1] Waiting for network connectivity..."
+    # Wait for Ethernet connection
+    log "[Phase 1] Waiting for Ethernet connectivity..."
     WAIT_COUNT=0
-    MAX_WAIT=30
+    MAX_WAIT=15
     while [ $WAIT_COUNT -lt $MAX_WAIT ]; do
         if ip route | grep -q "default"; then
-            log "[Phase 1] Network configured successfully!"
+            NETWORK_CONNECTED=true
+            log "[Phase 1] Ethernet connected successfully!"
             break
         fi
         sleep 1
@@ -202,6 +518,46 @@ else
     echo ""
 fi
 
+# Try WiFi if Ethernet failed and WiFi credentials provided
+if [ "$NETWORK_CONNECTED" = "false" ] && [ -n "$WIFI_IFACES" ]; then
+    if [ -n "$WIFI_SSID" ]; then
+        log "[Phase 1] Trying WiFi connection..."
+        log "  WiFi SSID configured: $WIFI_SSID"
+        
+        for iface in $WIFI_IFACES; do
+            if connect_wifi "$iface" "$WIFI_SSID" "$WIFI_PASSWORD" "$WIFI_PSK"; then
+                NETWORK_CONNECTED=true
+                break
+            fi
+        done
+    else
+        log "[Phase 1] WiFi interfaces detected but no credentials provided"
+        log "  To use WiFi, add to kernel cmdline:"
+        log "    wifi.ssid=YourNetwork wifi.password=YourPassword"
+        
+        # Try to scan and list available networks
+        if command -v iwlist >/dev/null 2>&1; then
+            log "  Available WiFi networks (scan results):"
+            for iface in $WIFI_IFACES; do
+                iwlist "$iface" scan 2>/dev/null | grep "ESSID:" | head -5 | while read line; do
+                    log "    $line"
+                done
+            done
+        fi
+    fi
+fi
+
+# Final network check
+if [ "$NETWORK_CONNECTED" = "false" ]; then
+    log_error "No network connection established!"
+    log "  Troubleshooting:"
+    log "  1. Connect Ethernet cable and reboot"
+    log "  2. Add WiFi credentials to boot parameters:"
+    log "     wifi.ssid=NetworkName wifi.password=Password"
+else
+    log "[Phase 1] Network configured successfully!"
+fi
+
 # Show network status
 echo ""
 echo "  === Network Status ==="
@@ -209,7 +565,16 @@ ip addr show 2>/dev/null | grep -E "inet " | while read line; do
     echo "  $line"
 done
 echo "  Gateway: $(ip route | grep default | awk '{print $3}')"
+if [ -n "$WIFI_SSID" ]; then
+    for iface in $WIFI_IFACES; do
+        connected_ssid=$(iwconfig "$iface" 2>/dev/null | grep ESSID | sed 's/.*ESSID:"\(.*\)".*/\1/')
+        if [ -n "$connected_ssid" ] && [ "$connected_ssid" != "off/any" ]; then
+            echo "  WiFi: $connected_ssid"
+        fi
+    done
+fi
 echo ""
+
 
 # ============================================
 # PHASE 2: Node Identity Generation
@@ -564,6 +929,18 @@ case "$1" in
         else
             echo "Bacalhau: Not running"
         fi
+        # Show WiFi status if available
+        for iface in /sys/class/net/wlan*; do
+            if [ -d "$iface" ]; then
+                ifname=$(basename "$iface")
+                ssid=$(iwconfig "$ifname" 2>/dev/null | grep ESSID | sed 's/.*ESSID:"\(.*\)".*/\1/')
+                if [ -n "$ssid" ] && [ "$ssid" != "off/any" ]; then
+                    echo "WiFi: Connected to $ssid ($ifname)"
+                else
+                    echo "WiFi: $ifname (not connected)"
+                fi
+            fi
+        done
         ;;
     logs)
         tail -100 /var/log/bacalhau.log
@@ -595,14 +972,88 @@ case "$1" in
         bacalhau serve --compute --config /etc/deparrow/bacalhau.yaml > /var/log/bacalhau.log 2>&1 &
         echo "Bacalhau restarted"
         ;;
+    wifi-scan)
+        echo "Scanning for WiFi networks..."
+        for iface in /sys/class/net/wlan*; do
+            if [ -d "$iface" ]; then
+                ifname=$(basename "$iface")
+                echo "=== $ifname ==="
+                iwlist "$ifname" scan 2>/dev/null | grep -E "ESSID:|Quality:|Encryption:" | head -20
+            fi
+        done
+        ;;
+    wifi-connect)
+        if [ -z "$2" ] || [ -z "$3" ]; then
+            echo "Usage: deparrow wifi-connect <ssid> <password>"
+            exit 1
+        fi
+        ssid="$2"
+        password="$3"
+        echo "Connecting to WiFi: $ssid"
+        
+        # Find WiFi interface
+        WIFI_IFACE=""
+        for iface in /sys/class/net/wlan*; do
+            if [ -d "$iface" ]; then
+                WIFI_IFACE=$(basename "$iface")
+                break
+            fi
+        done
+        
+        if [ -z "$WIFI_IFACE" ]; then
+            echo "No WiFi interface found"
+            exit 1
+        fi
+        
+        # Kill existing wpa_supplicant
+        killall wpa_supplicant 2>/dev/null || true
+        sleep 1
+        
+        # Generate config
+        psk=$(wpa_passphrase "$ssid" "$password" 2>/dev/null | grep "psk=" | head -1 | sed 's/.*psk=//')
+        cat > /tmp/wpa_supplicant.conf << WPAEOF
+ctrl_interface=/var/run/wpa_supplicant
+network={
+    ssid="$ssid"
+    psk="$psk"
+    key_mgmt=WPA-PSK
+}
+WPAEOF
+        
+        # Start wpa_supplicant
+        wpa_supplicant -B -i "$WIFI_IFACE" -c /tmp/wpa_supplicant.conf -D nl80211,wext
+        
+        # Wait for connection
+        sleep 5
+        
+        # Get DHCP
+        udhcpc -i "$WIFI_IFACE" -s /bin/dhcp-script.sh -T 3 -t 5 -n
+        
+        echo "WiFi connection attempt completed"
+        ip addr show "$WIFI_IFACE"
+        ;;
+    wifi-status)
+        echo "=== WiFi Status ==="
+        for iface in /sys/class/net/wlan*; do
+            if [ -d "$iface" ]; then
+                ifname=$(basename "$iface")
+                echo "--- $ifname ---"
+                iwconfig "$ifname" 2>/dev/null
+                echo ""
+            fi
+        done
+        ;;
     help|*)
         echo "DEparrow Commands:"
-        echo "  status    - Show node status"
-        echo "  logs      - View bacalhau logs"
-        echo "  credits   - Check earned credits"
-        echo "  register  - Manually register with network"
-        echo "  restart   - Restart bacalhau compute node"
-        echo "  help      - Show this help"
+        echo "  status       - Show node status"
+        echo "  logs         - View bacalhau logs"
+        echo "  credits      - Check earned credits"
+        echo "  register     - Manually register with network"
+        echo "  restart      - Restart bacalhau compute node"
+        echo "  wifi-scan    - Scan for WiFi networks"
+        echo "  wifi-connect - Connect to WiFi (ssid password)"
+        echo "  wifi-status  - Show WiFi interface status"
+        echo "  help         - Show this help"
         ;;
 esac
 DEPEOF
@@ -615,9 +1066,13 @@ cd "$INITRAMFS_DIR"
 # Calculate sizes before compression
 BACALHAU_SIZE=$(ls -lh bin/bacalhau 2>/dev/null | awk '{print $5}')
 BUSYBOX_SIZE=$(ls -lh bin/busybox 2>/dev/null | awk '{print $5}')
+FIRMWARE_SIZE=$(du -sh lib/firmware 2>/dev/null | awk '{print $1}')
 echo "    Components:"
 echo "      busybox: $BUSYBOX_SIZE"
 echo "      bacalhau: $BACALHAU_SIZE"
+if [ -n "$FIRMWARE_SIZE" ] && [ "$FIRMWARE_SIZE" != "0" ]; then
+    echo "      wifi firmware: $FIRMWARE_SIZE"
+fi
 
 find . | cpio -H newc -o 2>/dev/null | gzip -9 > "$ISO_DIR/boot/initrd.img"
 INITRD_SIZE=$(ls -lh "$ISO_DIR/boot/initrd.img" | awk '{print $5}')
@@ -660,6 +1115,27 @@ chmod 644 "$ISO_DIR/boot/vmlinuz"
 KERNEL_SIZE=$(ls -lh "$ISO_DIR/boot/vmlinuz" | awk '{print $5}')
 echo "    vmlinuz: $KERNEL_SIZE"
 
+# Set up BIOS boot support (i386-pc modules)
+# Check if BIOS modules are available (either system-wide or local)
+BIOS_MODULES_DIR=""
+if [ -d "/usr/lib/grub/i386-pc" ]; then
+    BIOS_MODULES_DIR="/usr/lib/grub/i386-pc"
+elif [ -d "$PROJECT_ROOT/deparrow/bootable/i386-pc" ]; then
+    BIOS_MODULES_DIR="$PROJECT_ROOT/deparrow/bootable/i386-pc"
+    echo "[*] Using local i386-pc modules for BIOS boot support"
+else
+    echo "[!] Warning: No i386-pc BIOS modules found. ISO will be EFI-only."
+fi
+
+# Copy BIOS modules to ISO directory for hybrid boot
+if [ -n "$BIOS_MODULES_DIR" ]; then
+    mkdir -p "$ISO_DIR/boot/grub/i386-pc"
+    cp "$BIOS_MODULES_DIR"/*.mod "$ISO_DIR/boot/grub/i386-pc/" 2>/dev/null || true
+    cp "$BIOS_MODULES_DIR"/*.img "$ISO_DIR/boot/grub/i386-pc/" 2>/dev/null || true
+    cp "$BIOS_MODULES_DIR"/*.lst "$ISO_DIR/boot/grub/i386-pc/" 2>/dev/null || true
+    echo "    Copied $(ls "$ISO_DIR/boot/grub/i386-pc/"*.mod 2>/dev/null | wc -l) BIOS modules"
+fi
+
 # Create GRUB config with kernel parameters for auto-join
 # IMPORTANT: grub.cfg must be at boot/grub/grub.cfg for grub-mkrescue to embed it
 cat > "$ISO_DIR/boot/grub/grub.cfg" << 'GRUB_EOF'
@@ -670,8 +1146,17 @@ insmod all_video
 insmod gfxterm
 terminal_output gfxterm
 
-menuentry "DEparrow Compute Node - Auto-Join Network" {
+menuentry "DEparrow Compute Node - Auto-Join Network (Ethernet)" {
     linux /boot/vmlinuz console=ttyS0,115200n8 quiet loglevel=3 deparrow.bootstrap=bootstrap.deparrow.net:8080
+    initrd /boot/initrd.img
+}
+
+menuentry "DEparrow Compute Node - WiFi Mode" {
+    echo "Enter WiFi SSID:"
+    read wifi_ssid
+    echo "Enter WiFi Password:"
+    read wifi_password
+    linux /boot/vmlinuz console=ttyS0,115200n8 quiet loglevel=3 deparrow.bootstrap=bootstrap.deparrow.net:8080 wifi.ssid=$wifi_ssid wifi.password=$wifi_password
     initrd /boot/initrd.img
 }
 
@@ -685,6 +1170,31 @@ menuentry "DEparrow Compute Node - Standalone (No Network)" {
     initrd /boot/initrd.img
 }
 
+submenu "Advanced Options >>>" {
+    menuentry "WiFi with Custom Bootstrap" {
+        echo "Enter WiFi SSID:"
+        read wifi_ssid
+        echo "Enter WiFi Password:"
+        read wifi_password
+        echo "Enter Bootstrap Server (host:port):"
+        read bootstrap_server
+        linux /boot/vmlinuz console=ttyS0,115200n8 quiet loglevel=3 deparrow.bootstrap=$bootstrap_server wifi.ssid=$wifi_ssid wifi.password=$wifi_password
+        initrd /boot/initrd.img
+    }
+    
+    menuentry "Ethernet with Custom Bootstrap" {
+        echo "Enter Bootstrap Server (host:port):"
+        read bootstrap_server
+        linux /boot/vmlinuz console=ttyS0,115200n8 quiet loglevel=3 deparrow.bootstrap=$bootstrap_server
+        initrd /boot/initrd.img
+    }
+    
+    menuentry "Test Mode (No Auto-Join)" {
+        linux /boot/vmlinuz console=ttyS0,115200n8 debug loglevel=7 deparrow.bootstrap=none
+        initrd /boot/initrd.img
+    }
+}
+
 menuentry "Reboot" {
     reboot
 }
@@ -696,13 +1206,99 @@ GRUB_EOF
 
 echo "[*] GRUB config created at $ISO_DIR/boot/grub/grub.cfg"
 
-# Build ISO using grub-mkrescue (supports both EFI and BIOS boot)
-# This is the correct method - it automatically embeds grub.cfg into the boot image
-echo "[*] Building ISO with grub-mkrescue (EFI + BIOS support)..."
+# Build ISO using grub-mkrescue with hybrid boot support
+# This creates an ISO that boots on both EFI and BIOS systems
+echo "[*] Building ISO with grub-mkrescue..."
 mkdir -p "$OUTPUT_DIR"
-grub-mkrescue -o "$OUTPUT_DIR/deparrow-autojoin.iso" "$ISO_DIR" 2>&1 | tail -5
+
+# Check for EFI modules
+EFI_MODULES_DIR=""
+if [ -d "/usr/lib/grub/x86_64-efi" ]; then
+    EFI_MODULES_DIR="/usr/lib/grub/x86_64-efi"
+    echo "    EFI modules found: $EFI_MODULES_DIR"
+fi
+
+# Create EFI boot image if modules are available
+if [ -n "$EFI_MODULES_DIR" ]; then
+    echo "    Creating EFI boot image..."
+    mkdir -p "$ISO_DIR/EFI/BOOT"
+    
+    # Create EFI GRUB core image (use only essential modules that exist)
+    if grub-mkimage -O x86_64-efi -o "$ISO_DIR/EFI/BOOT/BOOTX64.EFI" \
+        -p "/boot/grub" \
+        -d "$EFI_MODULES_DIR" \
+        part_gpt part_msdos linux normal echo ls cat help \
+        all_video gfxterm font \
+        search search_label search_fs_uuid search_fs_file \
+        fat ext2 ntfs hfsplus \
+        gzio \
+        serial; then
+        echo "    EFI boot image created: $(ls -lh "$ISO_DIR/EFI/BOOT/BOOTX64.EFI" | awk '{print $5}')"
+    else
+        echo "    Warning: EFI boot image creation failed"
+        rm -f "$ISO_DIR/EFI/BOOT/BOOTX64.EFI"
+    fi
+fi
+
+# Set GRUB platform for hybrid boot
+# grub-mkrescue will use available platforms automatically
+if [ -d "$BIOS_MODULES_DIR" ] && [ "$BIOS_MODULES_DIR" != "/usr/lib/grub/i386-pc" ]; then
+    # Use local modules - need to set environment for grub-mkrescue
+    export GRUB_PREFIX="$ISO_DIR/boot/grub"
+    
+    # Build BIOS core image first
+    if [ -f "$BIOS_MODULES_DIR/cdboot.img" ] && [ -f "$BIOS_MODULES_DIR/boot.img" ]; then
+        echo "    Creating hybrid boot image with BIOS support..."
+        
+        # Build the ISO with xorriso directly for more control over hybrid boot
+        # This method creates both El Torito (CD boot) and MBR (USB/disk boot)
+        
+        # First, create a BIOS bootable core image
+        GRUB_CORE="$BUILD_DIR/core.img"
+        grub-mkimage -O i386-pc -o "$GRUB_CORE" \
+            -p "/boot/grub" \
+            -d "$BIOS_MODULES_DIR" \
+            biosdisk part_msdos part_gcd iso9660 linux normal echo ls cat help \
+            all_video gfxterm font vbe vga video_fb video_cirrus video_bochs \
+            search search_label search_fs_uuid search_fs_file \
+            fat ext2 ntfs hfsplus \
+            gzio \
+            serial \
+            2>/dev/null || echo "    Note: BIOS core image creation failed"
+    fi
+fi
+
+# Build the ISO
+# grub-mkrescue automatically handles both platforms if modules are available
+grub-mkrescue -o "$OUTPUT_DIR/deparrow-autojoin.iso" "$ISO_DIR" 2>&1 | tail -10
 
 ISO_SIZE=$(ls -lh "$OUTPUT_DIR/deparrow-autojoin.iso" 2>/dev/null | awk '{print $5}')
+
+# Verify boot capabilities
+echo "[*] Verifying ISO boot capabilities..."
+xorriso -indev "$OUTPUT_DIR/deparrow-autojoin.iso" 2>&1 | grep -E "Boot record|platform" | head -5
+
+# Check for BIOS boot (MBR boot code)
+if xorriso -indev "$OUTPUT_DIR/deparrow-autojoin.iso" 2>&1 | grep -q "i386-pc"; then
+    BIOS_SUPPORT="✓"
+elif [ -d "$BIOS_MODULES_DIR" ]; then
+    # BIOS modules exist but may not be embedded properly
+    # Check if MBR boot code is present
+    if dd if="$OUTPUT_DIR/deparrow-autojoin.iso" bs=1 count=512 2>/dev/null | strings | grep -q "GRUB"; then
+        BIOS_SUPPORT="✓"
+    else
+        BIOS_SUPPORT="⚠ (modules present, may need manual setup)"
+    fi
+else
+    BIOS_SUPPORT="✗"
+fi
+
+# Check for EFI boot
+if [ -f "$ISO_DIR/EFI/BOOT/BOOTX64.EFI" ] && [ -s "$ISO_DIR/EFI/BOOT/BOOTX64.EFI" ]; then
+    EFI_SUPPORT="✓"
+else
+    EFI_SUPPORT="✗"
+fi
 
 echo ""
 echo "========================================="
@@ -712,6 +1308,14 @@ echo ""
 echo "  ISO: $OUTPUT_DIR/deparrow-autojoin.iso"
 echo "  Size: $ISO_SIZE"
 echo ""
+echo "  Boot Support:"
+echo "    BIOS (Legacy): $BIOS_SUPPORT"
+echo "    EFI (UEFI):    $EFI_SUPPORT"
+echo ""
+echo "  Network Support:"
+echo "    ✓ Ethernet (DHCP auto-config)"
+echo "    ✓ WiFi (WPA2-PSK, via kernel cmdline)"
+echo ""
 echo "  Features:"
 echo "    ✓ Auto-discover bootstrap server"
 echo "    ✓ Auto-register node identity"
@@ -719,13 +1323,29 @@ echo "    ✓ Auto-connect to orchestrator"
 echo "    ✓ Bacalhau compute node auto-start"
 echo "    ✓ Credit earning enabled"
 echo ""
-echo "  Test with QEMU:"
-echo "    qemu-system-x86_64 -m 2G -cdrom $OUTPUT_DIR/deparrow-autojoin.iso"
+echo "  WiFi Configuration (kernel cmdline):"
+echo "    wifi.ssid=YourNetworkName"
+echo "    wifi.password=YourPassword"
+echo "    wifi.psk=PreSharedKey (optional, instead of password)"
 echo ""
-echo "  For EFI boot:"
+echo "  Test with QEMU:"
+echo ""
+echo "    # BIOS boot test (no EFI firmware needed):"
+echo "    qemu-system-x86_64 -m 2G -cdrom $OUTPUT_DIR/deparrow-autojoin.iso -nographic"
+echo ""
+echo "    # EFI boot test:"
 echo "    qemu-system-x86_64 -m 2G \\"
 echo "      -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd \\"
 echo "      -drive if=pflash,format=raw,file=/tmp/ovmf_vars.fd \\"
 echo "      -cdrom $OUTPUT_DIR/deparrow-autojoin.iso"
 echo ""
+echo "    # QEMU with simulated WiFi (needs wireless adapter passthrough):"
+echo "    qemu-system-x86_64 -m 2G -cdrom $OUTPUT_DIR/deparrow-autojoin.iso \\"
+echo "      -nographic -append \"wifi.ssid=TestNet wifi.password=TestPass\""
+echo ""
+echo "  Burn to USB (bootable on both BIOS and EFI systems):"
+echo "    sudo dd if=$OUTPUT_DIR/deparrow-autojoin.iso of=/dev/sdX bs=4M status=progress && sync"
+echo ""
+
+
 

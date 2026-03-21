@@ -19,17 +19,21 @@ import os
 import sys
 import time
 import uuid
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
+import secrets
+import re
+from functools import wraps
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Callable, Set
+from typing import Dict, List, Optional, Any, Callable, Set, Tuple
 from dataclasses import dataclass, asdict, field
 from enum import Enum
 
 import aiohttp
 from aiohttp import web, WSMsgType
 import jwt
+from jwt.exceptions import InvalidAlgorithmError
 import redis.asyncio as redis
-from pydantic import BaseModel, Field, validator, ValidationError
+from pydantic import BaseModel, Field, validator, ValidationError, constr
 import asyncpg
 
 # Configure logging
@@ -46,8 +50,25 @@ class Config:
     PORT = int(os.getenv("DEPARROW_PORT", "8080"))
     # Security: JWT secret must be set via environment variable
     _jwt_secret = os.getenv("DEPARROW_JWT_SECRET")
-    JWT_SECRET = _jwt_secret if _jwt_secret else "dev-secret-key-DO-NOT-USE-IN-PRODUCTION"
+    
+    @classmethod
+    def _validate_jwt_secret(cls) -> str:
+        """Validate JWT secret meets security requirements"""
+        if not cls._jwt_secret:
+            if os.getenv("DEPARROW_ENV", "development") == "production":
+                raise ValueError(
+                    "CRITICAL: DEPARROW_JWT_SECRET must be set in production! "
+                    "Generate a secure secret with: openssl rand -hex 32"
+                )
+            logger.warning("Using insecure default JWT secret. Set DEPARROW_JWT_SECRET for production!")
+            return "dev-secret-key-INSECURE-CHANGE-IN-PRODUCTION"
+        if len(cls._jwt_secret) < 32:
+            raise ValueError(f"JWT secret must be at least 32 characters. Current: {len(cls._jwt_secret)}")
+        return cls._jwt_secret
+    
+    JWT_SECRET = _jwt_secret if _jwt_secret else "dev-secret-key-INSECURE"
     JWT_ALGORITHM = "HS256"
+    JWT_ALGORITHMS_ALLOWED = ["HS256"]  # Prevents algorithm confusion attacks
     JWT_EXPIRY_HOURS = 24
     
     # Database
@@ -62,6 +83,13 @@ class Config:
     # Network
     ORCHESTRATOR_PORT = 4222
     NODE_REGISTRATION_TTL = 300  # 5 minutes
+    
+    # Rate limiting
+    DEFAULT_RATE_LIMIT = 60  # requests per minute
+    AUTH_RATE_LIMIT = 10  # stricter limit for auth endpoints
+    
+    # Memory bounds
+    MAX_EXECUTION_HISTORY = 100  # per agent
 
 # Data Models
 class NodeStatus(str, Enum):
@@ -401,7 +429,7 @@ class RateLimiter:
             
             # Record this request
             self.requests[key].append(now)
-            return True, max_requests - current_count - 1
+            return True, max_requests - current_count - 1, 0
 
 
 # ============ DEPARROW TOOLS ============
@@ -668,10 +696,16 @@ class DEparrowBootstrapServer:
         try:
             # Verify JWT token
             payload = jwt.decode(
-                token,
-                Config.JWT_SECRET,
-                algorithms=[Config.JWT_ALGORITHM]
-            )
+                    token,
+                    Config.JWT_SECRET,
+                    algorithms=Config.JWT_ALGORITHMS_ALLOWED,
+                    options={
+                        'require_exp': True,
+                        'require_iat': True,
+                        'verify_exp': True,
+                        'verify_iat': True,
+                    }
+                )
             request['user_id'] = payload.get('user_id')
             request['role'] = payload.get('role', 'user')
         except jwt.ExpiredSignatureError:
@@ -1626,6 +1660,9 @@ class DEparrowBootstrapServer:
             
             # Store execution history
             self.agent_tool_executions[agent_id].append(execution_result)
+            # Limit history size to prevent memory exhaustion
+            if len(self.agent_tool_executions[agent_id]) > 100:
+                self.agent_tool_executions[agent_id] = self.agent_tool_executions[agent_id][-100:]
             
             # Broadcast tool execution
             await self.ws_manager.broadcast('tool_executions', {
@@ -1701,7 +1738,7 @@ class DEparrowBootstrapServer:
         if priority == 'high':
             credit_cost *= 2
         
-        job_id = f"job-{uuid.uuid4().hex[:12]}"
+        job_id = f"job-{secrets.token_hex(12)}"
         job = JobSubmission(
             job_id=job_id,
             user_id=agent_id,
@@ -1738,9 +1775,10 @@ class DEparrowBootstrapServer:
             return {'status': 'error', 'error': 'Job not found'}
         
         # Simulate job status (in production, query orchestrator)
-        import random
-        statuses = ['pending', 'running', 'completed']
-        job_status = random.choice(statuses)
+        # Deterministic status based on job_id for simulation
+        job_hash = hash(f"{job_id}:{job.credit_cost}") % 3
+        status_map = {0: 'pending', 1: 'running', 2: 'completed'}
+        job_status = status_map[job_hash]
         
         return {
             'status': 'success',
