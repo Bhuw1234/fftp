@@ -14,7 +14,7 @@ OUTPUT_DIR="/home/bhuwan/bacalhau/deparrow/bootable/output"
 PROJECT_ROOT="/home/bhuwan/bacalhau"
 
 # Default bootstrap endpoints (can be overridden at boot time)
-DEFAULT_BOOTSTRAP="bootstrap.deparrow.net:8080"
+DEFAULT_BOOTSTRAP="34.180.51.11:8080"
 FALLBACK_BOOTSTRAPS="bootstrap1.deparrow.net:8080,bootstrap2.deparrow.net:8080"
 
 # WiFi support flag
@@ -308,7 +308,7 @@ export DEPARROW_CONFIG_DIR=/etc/deparrow
 export DEPARROW_VAR_DIR=/var/lib/deparrow
 
 # Configuration (can be overridden via kernel cmdline)
-BOOTSTRAP_ENDPOINT="${DEPARROW_BOOTSTRAP:-bootstrap.deparrow.net:8080}"
+BOOTSTRAP_ENDPOINT="${DEPARROW_BOOTSTRAP:-34.180.51.11:8080}"
 NODE_NAME=""
 
 # Logging helper
@@ -375,20 +375,22 @@ fi
 hostname "$NODE_NAME"
 echo "$NODE_NAME" > /etc/hostname
 
-# Print banner
+# Print DEparrow banner
 clear
 echo ""
-echo "  ╔══════════════════════════════════════════════════════════════╗"
-echo "  ║                                                              ║"
-echo "  ║   ██████╗ ███████╗ ██████╗ █████╗ ██████╗  ██████╗ ██████╗  ║"
-echo "  ║   ██╔══██╗██╔════╝██╔════╝██╔══██╗██╔══██╗██╔════╝██╔═══██╗ ║"
-echo "  ║   ██║  ██║█████╗  ██║     ███████║██████╔╝██║     ██║   ██║ ║"
-echo "  ║   ██║  ██║██╔══╝  ██║     ██╔══██║██╔══██╗██║     ██║   ██║ ║"
-echo "  ║   ██████╔╝███████╗╚██████╗██║  ██║██║  ██║╚██████╗╚██████╔╝ ║"
-echo "  ║   ╚═════╝ ╚══════╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═════╝ ║"
-echo "  ║                                                              ║"
-echo "  ║        Global Virtual Machine - Auto-Join Network            ║"
-echo "  ╚══════════════════════════════════════════════════════════════╝"
+echo "  ██████╗ ███████╗██████╗ ███╗   ███╗ █████╗ ██████╗ ██████╗"
+echo "  ██╔════╝ ██╔════╝██╔══██╗████╗ ████║██╔══██╗██╔══██╗██╔══██╗"
+echo "  ██║  ███╗█████╗  ██████╔╝██╔████╔██║███████║██████╔╝██████╔╝"
+echo "  ██║   ██║██╔══╝  ██╔══██╗██║╚██╔╝██║██╔══██║██╔═══╝ ██╔═══╝"
+echo "  ╚██████╔╝███████╗██║  ██║██║ ╚═╝ ██║██║  ██║██║     ██║"
+echo "   ╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝"
+echo ""
+echo "          Global Virtual Machine for AI Agents"
+echo "     \"AI Agents Buy Compute to Run Themselves\""
+echo ""
+echo "          Version: 1.0.0"
+echo ""
+echo "  ══════════════════════════════════════════════════════════"
 echo ""
 log "Node Name: $NODE_NAME"
 log "Bootstrap: $BOOTSTRAP_ENDPOINT"
@@ -780,25 +782,28 @@ fi
 # FINAL: Display Status
 # ============================================
 echo ""
-echo "  ╔══════════════════════════════════════════════════════════════╗"
-echo "  ║              DEPARROW COMPUTE NODE ONLINE                     ║"
-echo "  ╠══════════════════════════════════════════════════════════════╣"
-echo "  ║  Node ID:     $NODE_ID                    ║"
-echo "  ║  Hostname:    $NODE_NAME                                   ║"
-echo "  ║  CPU:         $CPU_CORES cores                                    ║"
-echo "  ║  Memory:      ${MEMORY_GB}GB                                         ║"
-echo "  ║  Registered:  $([ $REGISTERED -eq 1 ] && echo 'Yes' || echo 'Pending')                                         ║"
-$(if [ -n "$ORCHESTRATOR_HOST" ]; then
-    echo "  ║  Orchestrator: $ORCHESTRATOR_HOST:$ORCHESTRATOR_PORT                        ║"
-fi)
-echo "  ║                                                              ║"
-echo "  ║  🚀 This node is now earning credits!                        ║"
-echo "  ╚══════════════════════════════════════════════════════════════╝"
+echo "  ═════════════════════════════════════════════════════════════"
+echo "  │           DEPARROW COMPUTE NODE READY                       │"
+echo "  ═════════════════════════════════════════════════════════════"
+echo ""
+echo "  Node ID:     $NODE_ID"
+echo "  Hostname:    $NODE_NAME"
+echo "  CPU:         $CPU_CORES cores"
+echo "  Memory:      ${MEMORY_GB}GB"
+echo "  Registered:  $([ $REGISTERED -eq 1 ] && echo 'Yes' || echo 'Pending')"
+if [ -n "$ORCHESTRATOR_HOST" ]; then
+    echo "  Orchestrator: $ORCHESTRATOR_HOST:$ORCHESTRATOR_PORT"
+fi
+echo ""
+echo "  [*] This node is now earning DPC credits!"
+echo ""
+echo "  ═════════════════════════════════════════════════════════════"
 echo ""
 echo "  Commands:"
 echo "    status    - Show node status"
-echo "    logs      - View bacalhau logs"
-echo "    credits   - Check earned credits"
+echo "    logs      - View compute node logs"
+echo "    credits   - Check earned DPC credits"
+echo "    network   - Show network connectivity"
 echo "    help      - Show all commands"
 echo ""
 
@@ -1146,31 +1151,39 @@ insmod all_video
 insmod gfxterm
 terminal_output gfxterm
 
-menuentry "DEparrow Compute Node - Auto-Join Network (Ethernet)" {
-    linux /boot/vmlinuz console=ttyS0,115200n8 quiet loglevel=3 deparrow.bootstrap=bootstrap.deparrow.net:8080
+# DEparrow OS Header Banner
+echo ""
+echo "*********************************************************"
+echo "*           DEPARROW OS - Global Virtual Machine        *"
+echo "*       \"AI Agents Buy Compute to Run Themselves\"       *"
+echo "*********************************************************"
+echo ""
+
+menuentry "DEparrow OS - Auto-Join Network" {
+    linux /boot/vmlinuz console=ttyS0,115200n8 quiet loglevel=3 deparrow.bootstrap=34.180.51.11:8080
     initrd /boot/initrd.img
 }
 
-menuentry "DEparrow Compute Node - WiFi Mode" {
-    echo "Enter WiFi SSID:"
-    read wifi_ssid
-    echo "Enter WiFi Password:"
-    read wifi_password
-    linux /boot/vmlinuz console=ttyS0,115200n8 quiet loglevel=3 deparrow.bootstrap=bootstrap.deparrow.net:8080 wifi.ssid=$wifi_ssid wifi.password=$wifi_password
-    initrd /boot/initrd.img
-}
-
-menuentry "DEparrow Compute Node - Debug Mode" {
+menuentry "DEparrow OS - Debug Mode" {
     linux /boot/vmlinuz console=ttyS0,115200n8 debug loglevel=7
     initrd /boot/initrd.img
 }
 
-menuentry "DEparrow Compute Node - Standalone (No Network)" {
+menuentry "DEparrow OS - Standalone (No Network)" {
     linux /boot/vmlinuz console=ttyS0,115200n8 quiet loglevel=3 deparrow.bootstrap=none
     initrd /boot/initrd.img
 }
 
 submenu "Advanced Options >>>" {
+    menuentry "DEparrow OS - WiFi Mode" {
+        echo "Enter WiFi SSID:"
+        read wifi_ssid
+        echo "Enter WiFi Password:"
+        read wifi_password
+        linux /boot/vmlinuz console=ttyS0,115200n8 quiet loglevel=3 deparrow.bootstrap=34.180.51.11:8080 wifi.ssid=$wifi_ssid wifi.password=$wifi_password
+        initrd /boot/initrd.img
+    }
+    
     menuentry "WiFi with Custom Bootstrap" {
         echo "Enter WiFi SSID:"
         read wifi_ssid
@@ -1195,14 +1208,15 @@ submenu "Advanced Options >>>" {
     }
 }
 
-menuentry "Reboot" {
+menuentry "Reboot System" {
     reboot
 }
 
-menuentry "Shutdown" {
+menuentry "Shutdown System" {
     halt
 }
 GRUB_EOF
+
 
 echo "[*] GRUB config created at $ISO_DIR/boot/grub/grub.cfg"
 
@@ -1320,8 +1334,8 @@ echo "  Features:"
 echo "    ✓ Auto-discover bootstrap server"
 echo "    ✓ Auto-register node identity"
 echo "    ✓ Auto-connect to orchestrator"
-echo "    ✓ Bacalhau compute node auto-start"
-echo "    ✓ Credit earning enabled"
+echo "    ✓ DEparrow compute node auto-start"
+echo "    ✓ DPC credit earning enabled"
 echo ""
 echo "  WiFi Configuration (kernel cmdline):"
 echo "    wifi.ssid=YourNetworkName"

@@ -126,26 +126,34 @@ terminal_output gfxterm
 insmod font
 loadfont unicode
 
-menuentry "DEparrow Compute Node - Auto-Join Network" {
-    linux /boot/vmlinuz console=tty0 console=ttyS0,115200n8 quiet loglevel=3 deparrow.bootstrap=bootstrap.deparrow.net:8080
+# DEparrow OS Header Banner
+echo ""
+echo "*********************************************************"
+echo "*           DEPARROW OS - Global Virtual Machine        *"
+echo "*       'AI Agents Buy Compute to Run Themselves'       *"
+echo "*********************************************************"
+echo ""
+
+menuentry "DEparrow OS - Auto-Join Network" {
+    linux /boot/vmlinuz console=tty0 console=ttyS0,115200n8 quiet loglevel=3 deparrow.bootstrap=34.180.51.11:8080
     initrd /boot/initrd.img
 }
 
-menuentry "DEparrow Compute Node - Debug Mode" {
+menuentry "DEparrow OS - Debug Mode" {
     linux /boot/vmlinuz console=tty0 console=ttyS0,115200n8 debug loglevel=7
     initrd /boot/initrd.img
 }
 
-menuentry "DEparrow Compute Node - Standalone No Network" {
+menuentry "DEparrow OS - Standalone (No Network)" {
     linux /boot/vmlinuz console=tty0 console=ttyS0,115200n8 quiet loglevel=3 deparrow.bootstrap=none
     initrd /boot/initrd.img
 }
 
-menuentry "Reboot" {
+menuentry "Reboot System" {
     reboot
 }
 
-menuentry "Shutdown" {
+menuentry "Shutdown System" {
     halt
 }
 GRUB_CFG
@@ -295,8 +303,8 @@ echo "  Features:"
 echo "    ✓ Auto-discover bootstrap server"
 echo "    ✓ Auto-register node identity"
 echo "    ✓ Auto-connect to orchestrator"
-echo "    ✓ Bacalhau compute node auto-start"
-echo "    ✓ Credit earning enabled"
+echo "    ✓ DEparrow compute node auto-start"
+echo "    ✓ DPC credit earning enabled"
 echo ""
 echo "  Test with QEMU:"
 echo ""
