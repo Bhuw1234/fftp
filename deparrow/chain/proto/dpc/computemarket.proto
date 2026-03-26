@@ -18,6 +18,30 @@ message Provider {
   bool active = 7;
 }
 
+// ProviderCapabilities represents a provider's compute capabilities
+message ProviderCapabilities {
+  uint64 cpu = 1;       // CPU cores
+  uint64 memory = 2;    // Memory in MB
+  uint64 gpu = 3;       // GPU count
+  uint64 storage = 4;   // Storage in GB
+  repeated string regions = 5;  // Supported regions
+  repeated string tags = 6;     // Capability tags
+}
+
+// ProviderExtended represents an extended provider with all fields
+message ProviderExtended {
+  string address = 1;
+  cosmos.base.v1beta1.Coin staked_amount = 2;
+  uint32 reputation_score = 3;
+  ProviderCapabilities capabilities = 4;
+  uint64 completed_jobs = 5;
+  uint64 failed_jobs = 6;
+  uint64 slashed_count = 7;
+  int32 status = 8;  // ProviderStatus enum
+  int64 registered_at = 9;
+  int64 last_active_at = 10;
+}
+
 // Escrow represents an escrow contract for job payment
 message Escrow {
   string job_id = 1;
@@ -29,6 +53,22 @@ message Escrow {
   int64 created_at = 7;
 }
 
+// EscrowExtended represents an extended escrow with all fields
+message EscrowExtended {
+  string id = 1;
+  string job_id = 2;
+  string submitter = 3;
+  string provider = 4;
+  cosmos.base.v1beta1.Coin amount = 5;
+  cosmos.base.v1beta1.Coin fee = 6;
+  EscrowStatus status = 7;
+  int64 deadline = 8;
+  int64 created_at = 9;
+  int64 released_at = 10;
+  int64 refunded_at = 11;
+  string dispute_id = 12;
+}
+
 enum EscrowStatus {
   ESCROW_STATUS_UNSPECIFIED = 0;
   ESCROW_STATUS_LOCKED = 1;
@@ -37,9 +77,273 @@ enum EscrowStatus {
   ESCROW_STATUS_DISPUTED = 4;
 }
 
+// Dispute represents a dispute over an escrow
+message Dispute {
+  string id = 1;
+  string escrow_id = 2;
+  string job_id = 3;
+  string submitter = 4;
+  string provider = 5;
+  string reason = 6;
+  bytes evidence = 7;
+  int32 status = 8;  // DisputeStatus enum
+  string resolution = 9;
+  string winner = 10;
+  int64 opened_at = 11;
+  int64 resolved_at = 12;
+  cosmos.base.v1beta1.Coin slash_amount = 13;
+}
+
+enum DisputeStatus {
+  DISPUTE_STATUS_OPEN = 0;
+  DISPUTE_STATUS_RESOLVED = 1;
+  DISPUTE_STATUS_EXPIRED = 2;
+}
+
+// JobMatch represents a match between a job and a provider
+message JobMatch {
+  string job_id = 1;
+  string provider = 2;
+  uint32 score = 3;
+  int64 matched_at = 4;
+  ProviderCapabilities requirements = 5;
+}
+
 // Params defines the parameters for the computemarket module.
 message Params {
-  string min_stake = 1;           // Minimum stake for providers
-  uint32 dispute_period = 2;      // Dispute period in blocks
-  uint32 max_job_duration = 3;    // Maximum job duration in seconds
+  cosmos.base.v1beta1.Coin min_stake = 1;  // Minimum stake for providers
+  uint32 dispute_period = 2;               // Dispute period in blocks
+  uint32 max_job_duration = 3;             // Maximum job duration in seconds
+  string network_fee = 4;                  // Network fee percentage (decimal string)
+  uint32 min_reputation = 5;               // Minimum reputation to accept jobs
+  uint32 slash_percent = 6;                // Percentage to slash for failed jobs
+  uint32 dispute_slash_percent = 7;        // Percentage to slash when losing dispute
+}
+
+// GenesisState defines the computemarket module's genesis state.
+message GenesisState {
+  Params params = 1;
+  repeated ProviderExtended providers = 2;
+  repeated EscrowExtended escrows = 3;
+  repeated Dispute disputes = 4;
+  repeated JobMatch job_matches = 5;
+  string total_staked = 6;
+  string total_escrowed = 7;
+}
+
+// Msg Service
+
+// MsgRegisterProvider
+message MsgRegisterProvider {
+  string address = 1;
+  cosmos.base.v1beta1.Coin stake = 2;
+  ProviderCapabilities capabilities = 3;
+}
+
+message MsgRegisterProviderResponse {
+  string address = 1;
+  uint32 reputation_score = 2;
+}
+
+// MsgUnregisterProvider
+message MsgUnregisterProvider {
+  string address = 1;
+}
+
+message MsgUnregisterProviderResponse {}
+
+// MsgStakeProvider
+message MsgStakeProvider {
+  string address = 1;
+  cosmos.base.v1beta1.Coin amount = 2;
+}
+
+message MsgStakeProviderResponse {
+  string address = 1;
+  string total_stake = 2;
+}
+
+// MsgUnstakeProvider
+message MsgUnstakeProvider {
+  string address = 1;
+  cosmos.base.v1beta1.Coin amount = 2;
+}
+
+message MsgUnstakeProviderResponse {
+  string address = 1;
+  string remaining_stake = 2;
+}
+
+// MsgCreateEscrow
+message MsgCreateEscrow {
+  string job_id = 1;
+  string submitter = 2;
+  string provider = 3;
+  cosmos.base.v1beta1.Coin amount = 4;
+  int64 duration = 5;
+}
+
+message MsgCreateEscrowResponse {
+  string escrow_id = 1;
+  string status = 2;
+}
+
+// MsgReleaseEscrow
+message MsgReleaseEscrow {
+  string escrow_id = 1;
+  string submitter = 2;
+}
+
+message MsgReleaseEscrowResponse {
+  string escrow_id = 1;
+  string status = 2;
+}
+
+// MsgRefundEscrow
+message MsgRefundEscrow {
+  string escrow_id = 1;
+  string caller = 2;
+}
+
+message MsgRefundEscrowResponse {
+  string escrow_id = 1;
+  string status = 2;
+}
+
+// MsgOpenDispute
+message MsgOpenDispute {
+  string escrow_id = 1;
+  string disputer = 2;
+  string reason = 3;
+  bytes evidence = 4;
+}
+
+message MsgOpenDisputeResponse {
+  string dispute_id = 1;
+  string status = 2;
+}
+
+// MsgResolveDispute
+message MsgResolveDispute {
+  string dispute_id = 1;
+  string resolver = 2;
+  string resolution = 3;
+  string winner = 4;
+}
+
+message MsgResolveDisputeResponse {
+  string dispute_id = 1;
+  string resolution = 2;
+}
+
+// Query Service
+
+message QueryProviderRequest {
+  string address = 1;
+}
+
+message QueryProviderResponse {
+  ProviderExtended provider = 1;
+}
+
+message QueryProvidersRequest {}
+
+message QueryProvidersResponse {
+  repeated ProviderExtended providers = 1;
+}
+
+message QueryActiveProvidersRequest {}
+
+message QueryActiveProvidersResponse {
+  repeated string providers = 1;
+}
+
+message QueryEscrowRequest {
+  string escrow_id = 1;
+}
+
+message QueryEscrowResponse {
+  EscrowExtended escrow = 1;
+}
+
+message QueryEscrowsByProviderRequest {
+  string provider = 1;
+}
+
+message QueryEscrowsByProviderResponse {
+  repeated EscrowExtended escrows = 1;
+}
+
+message QueryEscrowByJobRequest {
+  string job_id = 1;
+}
+
+message QueryDisputeRequest {
+  string dispute_id = 1;
+}
+
+message QueryDisputeResponse {
+  Dispute dispute = 1;
+}
+
+message QueryDisputesByProviderRequest {
+  string provider = 1;
+}
+
+message QueryDisputesByProviderResponse {
+  repeated Dispute disputes = 1;
+}
+
+message QueryParamsRequest {}
+
+message QueryParamsResponse {
+  Params params = 1;
+}
+
+message QueryStatsRequest {}
+
+message QueryStatsResponse {
+  string total_staked = 1;
+  string total_escrowed = 2;
+  uint64 active_providers = 3;
+  uint64 total_providers = 4;
+}
+
+// Msg service definition
+service Msg {
+  // Provider management
+  rpc RegisterProvider(MsgRegisterProvider) returns (MsgRegisterProviderResponse);
+  rpc UnregisterProvider(MsgUnregisterProvider) returns (MsgUnregisterProviderResponse);
+  rpc StakeProvider(MsgStakeProvider) returns (MsgStakeProviderResponse);
+  rpc UnstakeProvider(MsgUnstakeProvider) returns (MsgUnstakeProviderResponse);
+  
+  // Escrow management
+  rpc CreateEscrow(MsgCreateEscrow) returns (MsgCreateEscrowResponse);
+  rpc ReleaseEscrow(MsgReleaseEscrow) returns (MsgReleaseEscrowResponse);
+  rpc RefundEscrow(MsgRefundEscrow) returns (MsgRefundEscrowResponse);
+  
+  // Dispute management
+  rpc OpenDispute(MsgOpenDispute) returns (MsgOpenDisputeResponse);
+  rpc ResolveDispute(MsgResolveDispute) returns (MsgResolveDisputeResponse);
+}
+
+// Query service definition
+service Query {
+  // Provider queries
+  rpc Provider(QueryProviderRequest) returns (QueryProviderResponse);
+  rpc Providers(QueryProvidersRequest) returns (QueryProvidersResponse);
+  rpc ActiveProviders(QueryActiveProvidersRequest) returns (QueryActiveProvidersResponse);
+  
+  // Escrow queries
+  rpc Escrow(QueryEscrowRequest) returns (QueryEscrowResponse);
+  rpc EscrowsByProvider(QueryEscrowsByProviderRequest) returns (QueryEscrowsByProviderResponse);
+  rpc EscrowByJob(QueryEscrowByJobRequest) returns (QueryEscrowResponse);
+  
+  // Dispute queries
+  rpc Dispute(QueryDisputeRequest) returns (QueryDisputeResponse);
+  rpc DisputesByProvider(QueryDisputesByProviderRequest) returns (QueryDisputesByProviderResponse);
+  
+  // Stats queries
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse);
+  rpc Stats(QueryStatsRequest) returns (QueryStatsResponse);
 }

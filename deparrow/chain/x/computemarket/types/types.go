@@ -3,6 +3,7 @@ package types
 import (
 	fmt "fmt"
 
+	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -20,49 +21,28 @@ const (
 	QuerierRoute = ModuleName
 )
 
-// EscrowStatus represents the status of an escrow
-type EscrowStatus int32
-
-const (
-	EscrowStatusLocked    EscrowStatus = 0
-	EscrowStatusReleased  EscrowStatus = 1
-	EscrowStatusRefunded  EscrowStatus = 2
-	EscrowStatusDisputed  EscrowStatus = 3
-)
-
-func (s EscrowStatus) String() string {
-	switch s {
-	case EscrowStatusLocked:
-		return "locked"
-	case EscrowStatusReleased:
-		return "released"
-	case EscrowStatusRefunded:
-		return "refunded"
-	case EscrowStatusDisputed:
-		return "disputed"
-	default:
-		return "unknown"
-	}
-}
-
 // Provider represents a compute provider in the network
+// This is the simplified version for backwards compatibility
+// Use ProviderExtended for full functionality
 type Provider struct {
 	Address         string
 	StakedAmount    sdk.Coin
 	ReputationScore uint32 // 0-1000
-	Capabilities    []byte // CPU, GPU, memory specs
+	Capabilities    []byte // CPU, GPU, memory specs (serialized ProviderCapabilities)
 	CompletedJobs   uint64
 	FailedJobs      uint64
 	Active          bool
 }
 
 // Escrow represents an escrow contract for job payment
+// This is the simplified version for backwards compatibility
+// Use EscrowExtended for full functionality
 type Escrow struct {
 	JobID     string
 	Submitter string
 	Provider  string
 	Amount    sdk.Coin
-	Status    EscrowStatus
+	Status    EscrowStatusExtended
 	Deadline  int64
 	CreatedAt int64
 }
@@ -122,17 +102,25 @@ func (e Escrow) Validate() error {
 
 // Params defines the parameters for the computemarket module.
 type Params struct {
-	MinStake       sdk.Coin
-	DisputePeriod  uint32 // in blocks
-	MaxJobDuration uint32 // in seconds
+	MinStake            sdk.Coin // Minimum stake for providers
+	DisputePeriod       uint32   // Dispute period in blocks
+	MaxJobDuration      uint32   // Maximum job duration in seconds
+	NetworkFee          math.LegacyDec // Network fee percentage (0.01 = 1%)
+	MinReputation       uint32   // Minimum reputation to accept jobs
+	SlashPercent        uint32   // Percentage to slash for failed jobs
+	DisputeSlashPercent uint32   // Percentage to slash when losing dispute
 }
 
 // DefaultParams returns default computemarket module parameters
 func DefaultParams() Params {
 	return Params{
-		MinStake:       sdk.NewCoin("dpc", sdk.NewInt(1000)), // 1000 DPC minimum stake
-		DisputePeriod:  100,                                  // 100 blocks
-		MaxJobDuration: 86400,                                // 24 hours
+		MinStake:            sdk.NewCoin("dpc", math.NewInt(1000)), // 1000 DPC minimum stake
+		DisputePeriod:       100,                                   // 100 blocks
+		MaxJobDuration:      86400,                                 // 24 hours
+		NetworkFee:          math.LegacyNewDecWithPrec(1, 2),       // 1% fee
+		MinReputation:       100,                                   // Min 100 reputation
+		SlashPercent:        10,                                    // 10% slash for failed jobs
+		DisputeSlashPercent: 50,                                    // 50% slash for lost disputes
 	}
 }
 
@@ -147,5 +135,36 @@ func (p Params) Validate() error {
 	if p.MaxJobDuration == 0 {
 		return fmt.Errorf("max job duration must be positive")
 	}
+	if p.NetworkFee.IsNegative() || p.NetworkFee.GT(math.LegacyOneDec()) {
+		return fmt.Errorf("network fee must be between 0 and 1")
+	}
+	if p.MinReputation > 1000 {
+		return fmt.Errorf("min reputation must be between 0 and 1000")
+	}
+	if p.SlashPercent > 100 {
+		return fmt.Errorf("slash percent must be between 0 and 100")
+	}
+	if p.DisputeSlashPercent > 100 {
+		return fmt.Errorf("dispute slash percent must be between 0 and 100")
+	}
 	return nil
+}
+
+// GetMinStake returns the minimum stake as sdk.Int
+func (p Params) GetMinStake() math.Int {
+	return p.MinStake.Amount
+}
+
+// CalculateFee calculates the network fee for an amount
+func (p Params) CalculateFee(amount math.Int) math.Int {
+	return p.NetworkFee.MulInt(amount).TruncateInt()
+}
+
+// CalculateSlash calculates the slash amount for a stake
+func (p Params) CalculateSlash(stake math.Int, isDispute bool) math.Int {
+	percent := p.SlashPercent
+	if isDispute {
+		percent = p.DisputeSlashPercent
+	}
+	return stake.Mul(math.NewInt(int64(percent))).Quo(math.NewInt(100))
 }
