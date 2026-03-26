@@ -96,18 +96,18 @@
 └───────────────────────────────────────────────────────────────┘
 ```
 
-### ISO 镜像 - 生产就绪 (2026-03-23)
+### ISO 镜像 - 生产就绪 (2026-03-26)
 
 **可用 ISO 文件:**
 
 | ISO 文件 | 大小 | 说明 |
 |----------|------|------|
-| `deparrow-1.0.0.iso` | 27MB | 精简版，仅 EFI 启动 |
-| `deparrow-alpine.iso` | 47MB | Alpine Linux 完整版 |
-| `deparrow-autojoin.iso` | 94MB | 6阶段自动加入网络 |
-| `deparrow-autojoin-local.iso` | 72MB | 本地测试版 (QEMU) |
-| `deparrow-hybrid.iso` | 107MB | BIOS + EFI 双启动 |
-| `deparrow-os-1.0.0.iso` | 78MB | **DEparrow 品牌版 (推荐)** |
+| `deparrow-1.0.0.iso` | 28MB | 精简版，仅 EFI 启动 |
+| `deparrow-alpine.iso` | 49MB | Alpine Linux 完整版 |
+| `deparrow-autojoin.iso` | 99MB | 6阶段自动加入网络 |
+| `deparrow-autojoin-local.iso` | 76MB | 本地测试版 (QEMU) |
+| `deparrow-hybrid.iso` | 112MB | BIOS + EFI 双启动 |
+| `deparrow-os-1.0.0.iso` | 81MB | **DEparrow 品牌版 (推荐)** |
 
 **当前引导服务器:** `34.180.51.11:8080` (GCP 运行中)
 
@@ -381,7 +381,7 @@ $ deparrow run train-model.py
 
 ## Global VM Implementation Summary
 
-**Total Files:** 11 main files + 4 capability files + 6 test files
+**Total Files:** 18 Go files (main + tests)
 **Status:** 100% COMPLETE
 
 ---
@@ -447,7 +447,7 @@ $ deparrow run train-model.py
 
 | 库 | 版本 | 用途 |
 |----|------|------|
-| Vite | 5.0.8 | 构建工具 |
+| Vite | 5.1.4 | 构建工具 |
 | React | 18.2.0 | UI 库 |
 | React Router | 6.20.0 | 路由 |
 | Recharts | 2.10.3 | 图表库 |
@@ -512,7 +512,7 @@ $ deparrow run train-model.py
 │
 ├── webui/                     # Web 界面 (Next.js 15)
 │   ├── app/                   # Next.js App Router
-│   ├── components/            # React 组件 (57 TSX)
+│   ├── components/            # React 组件
 │   │   ├── ui/                # UI 基础组件
 │   │   ├── jobs/              # 作业组件
 │   │   ├── nodes/             # 节点组件
@@ -838,7 +838,7 @@ cd deparrow
 
 ### 可启动 ISO 测试
 
-**ISO 文件:** `deparrow/bootable/output/deparrow-hybrid.iso` (107MB，BIOS+EFI 双启动)
+**ISO 文件:** `deparrow/bootable/output/deparrow-hybrid.iso` (112MB，BIOS+EFI 双启动)
 
 | 方式 | 命令 |
 |------|------|
@@ -1002,7 +1002,7 @@ MOBILE APP: 0% ░░░░░░░░░░░░░░░░░░░░
 └── Embedded Compute         0% ░░░░░░░░░░░░░░░░░░░░
 ```
 
-### GCP 部署状态 (2026-03-23) ✅ LIVE
+### GCP 部署状态 (2026-03-26) ✅ LIVE
 
 | 组件 | 状态 | 端点 |
 |------|------|------|
@@ -1023,7 +1023,7 @@ BACALHAU_API_HOST=34.180.51.11 ./bacalhau docker run ubuntu echo "Hello"
 BACALHAU_API_HOST=34.180.51.11 ./bacalhau node list
 ```
 
-### 最近完成 (2026-03-23)
+### 最近完成 (2026-03-26)
 
 | 里程碑 | 状态 | 说明 |
 |--------|------|------|
@@ -1038,7 +1038,7 @@ BACALHAU_API_HOST=34.180.51.11 ./bacalhau node list
 | - ASCII Banner | ✅ | DEparrow 专属启动横幅 |
 | - GRUB 菜单 | ✅ | "DEparrow OS" 菜单项 |
 | - Alpine Minirootfs | ✅ | 官方 Alpine 3.20 基础 |
-| - 品牌版 ISO | ✅ | deparrow-os-1.0.0.iso (78MB) |
+| - 品牌版 ISO | ✅ | deparrow-os-1.0.0.iso (81MB) |
 
 ### ISO 功能状态
 
@@ -1085,13 +1085,13 @@ cd deparrow/bootable
 | 组件 | 文件数 | 测试文件 | 说明 |
 |------|--------|----------|------|
 | pkg/ (核心库) | 941 Go 文件 | 288 | Go 核心模块 (40 子目录) |
-| WebUI | 3713 TS/TSX | - | Next.js 15 + React 组件 |
+| WebUI | 3713 TS/TSX | 24 | Next.js 15 + React 组件 |
 | PicoClaw DEparrow | 14 | 7 | 87%+ 覆盖率 |
-| pkg/globalvm | 11 | 6 | Global VM (5690 行代码) |
+| pkg/globalvm | 18 | - | Global VM 实现 |
 | K8s Manifests | 22 | - | base/*.yaml |
 | Python Tests | - | 91 | 完整覆盖 |
 | GRUB BIOS 模块 | 304 | - | i386-pc/ |
-| ISO 输出 | 6 | - | 27MB ~ 107MB |
+| ISO 输出 | 6 | - | 28MB ~ 112MB |
 | bin/deparrow | 1 | - | CLI 包装器 (零风险) |
 
 ### 核心文件清单
@@ -1124,18 +1124,18 @@ deparrow/bootable/
 ├── alpine-minirootfs-3.20.0-x86_64.tar.gz  # Alpine 基础
 ├── i386-pc/               # GRUB BIOS 模块 (304 文件)
 └── output/
-    ├── deparrow-os-1.0.0.iso     (78MB)  # 品牌版 (推荐)
-    ├── deparrow-hybrid.iso       (107MB)
-    ├── deparrow-autojoin.iso     (94MB)
-    └── deparrow-alpine.iso       (48MB)
+    ├── deparrow-os-1.0.0.iso     (81MB)  # 品牌版 (推荐)
+    ├── deparrow-hybrid.iso       (112MB)
+    ├── deparrow-autojoin.iso     (99MB)
+    └── deparrow-alpine.iso       (49MB)
 
 deparrow/docs/
 └── DPC-TOKEN-DESIGN.md    # DPC 代币设计文档
 
 webui/
 ├── app/ (Next.js App Router)
-├── components/ (57 TSX 组件)
-└── *.test.tsx (55 测试文件)
+├── components/ (React 组件)
+└── *.test.tsx (24 测试文件)
 
 deparrow/k8s/base/
 └── 22 YAML manifests
@@ -1181,17 +1181,7 @@ deparrow/k8s/base/
 ### 当前分支状态
 
 **Git 分支:** `main`
-**最新提交:** f21251552 - feat: Major ISO enhancements and security hardening
-
-**待提交更改:**
-| 文件 | 状态 |
-|------|------|
-| IFLOW.md | 已修改 |
-| deparrow/bootable/alpine-minirootfs-3.20.0-x86_64.tar.gz | 新增 |
-| deparrow/bootable/build-deparrow-iso.sh | 新增/修改 |
-| deparrow/bootable/build-hybrid-iso.sh | 已修改 |
-| deparrow/bootable/build-iso-v2.sh | 已修改 |
-| deparrow/bootable/deparrow-banner.txt | 新增 |
+**最新提交:** 0653b9bcd - feat: GCP deployment complete and project status update to 95%
 
 ### GCP 部署 (已运行)
 
@@ -1331,7 +1321,7 @@ Apache 2.0 许可证
 
 ---
 
-*文档最后更新: 2026-03-23*
+*文档最后更新: 2026-03-26*
 
 ---
 
