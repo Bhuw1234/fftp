@@ -62,6 +62,7 @@ type Job struct {
 	ComputeUnits uint64
 	CreatedAt    int64
 	CompletedAt  int64
+	Complexity   uint32    // Complexity multiplier (1-5)
 }
 
 // ComputeProof represents proof of computation
@@ -101,28 +102,41 @@ func (j Job) Validate() error {
 // Params defines the parameters for the proofofcompute module.
 type Params struct {
 	MinComputeUnits      uint64
-	RewardPerUnit        sdk.Dec
-	DifficultyAdjustment uint64
-	TargetBlockTime      uint32
+	RewardPerUnit        string   // DPC reward per compute unit (as string for precision)
+	DifficultyAdjustment uint64   // Difficulty adjustment period (blocks)
+	TargetBlockTime      uint32   // Target block time in seconds
+	MaxSupply            string   // Maximum DPC supply (21B with 18 decimals)
+	ComplexityMultiplier uint32   // Max complexity multiplier (default 5)
+	MinStake             string   // Minimum stake required
 }
 
-// DefaultParams returns default proofofcompute module parameters
-func DefaultParams() Params {
-	return Params{
-		MinComputeUnits:      1,
-		RewardPerUnit:        sdk.NewDec(1), // 1 DPC per compute unit
-		DifficultyAdjustment: 1000,          // Adjust every 1000 blocks
-		TargetBlockTime:      6,             // 6 seconds
-	}
+// RewardParams holds parameters for reward calculation
+type RewardParams struct {
+	BaseRate           sdk.Dec // Base reward rate (0.001 DPC)
+	ComplexityMultiplier uint32  // 1-5x multiplier
+	ComputeUnits       uint64  // Actual compute units consumed
 }
 
-// Validate validates the params
-func (p Params) Validate() error {
-	if p.MinComputeUnits == 0 {
-		return fmt.Errorf("min compute units must be positive")
+// DifficultyParams holds parameters for difficulty adjustment
+type DifficultyParams struct {
+	CurrentDifficulty  uint64  // Current difficulty level
+	TargetJobsPerBlock float64 // Target jobs per block
+	ActualJobsPerBlock float64 // Actual jobs per block
+	AdjustmentFactor   float64 // Adjustment factor (0.25 for 25% max change)
+}
+
+// PendingReward represents a pending reward to be claimed
+type PendingReward struct {
+	NodeAddress string
+	Amount      sdk.Coin
+	JobIDs      []string // Jobs that contributed to this reward
+}
+
+// NewPendingReward creates a new pending reward
+func NewPendingReward(nodeAddress string, amount sdk.Coin, jobIDs []string) PendingReward {
+	return PendingReward{
+		NodeAddress: nodeAddress,
+		Amount:      amount,
+		JobIDs:      jobIDs,
 	}
-	if p.TargetBlockTime == 0 {
-		return fmt.Errorf("target block time must be positive")
-	}
-	return nil
 }

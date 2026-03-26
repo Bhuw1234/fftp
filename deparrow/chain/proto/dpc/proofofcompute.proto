@@ -21,6 +21,7 @@ message Job {
   uint64 compute_units = 9;  // CPU-hours, GPU-hours
   int64 created_at = 10;
   int64 completed_at = 11;
+  uint32 complexity = 12;    // Complexity multiplier (1-5)
 }
 
 enum JobStatus {
@@ -45,7 +46,194 @@ message ComputeProof {
 // Params defines the parameters for the proofofcompute module.
 message Params {
   uint64 min_compute_units = 1;      // Minimum compute units for reward
-  string reward_per_unit = 2;        // DPC reward per compute unit
+  string reward_per_unit = 2;        // DPC reward per compute unit (base rate)
   uint64 difficulty_adjustment = 3;  // Difficulty adjustment period (blocks)
   uint32 target_block_time = 4;      // Target block time in seconds
+  string max_supply = 5;             // Maximum DPC supply (21B with 18 decimals)
+  uint32 complexity_multiplier = 6;  // Max complexity multiplier (default 5)
+  string min_stake = 7;              // Minimum stake required for job submission
+}
+
+// GenesisState defines the proofofcompute module's genesis state.
+message GenesisState {
+  Params params = 1;
+  repeated Job jobs = 2;
+  repeated ComputeProof proofs = 3;
+  string total_supply = 4;
+  uint64 current_difficulty = 5;
+}
+
+// MsgSubmitJob defines a message to submit a new compute job
+message MsgSubmitJob {
+  string submitter = 1;
+  bytes job_spec = 2;
+  cosmos.base.v1beta1.Coin stake = 3;
+  uint64 compute_units = 4;
+}
+
+// MsgSubmitJobResponse is the response for MsgSubmitJob
+message MsgSubmitJobResponse {
+  string job_id = 1;
+  string status = 2;
+}
+
+// MsgSubmitProof defines a message to submit compute proof
+message MsgSubmitProof {
+  string job_id = 1;
+  string node_address = 2;
+  uint64 compute_units = 3;
+  int64 execution_time = 4;
+  bytes output_hash = 5;
+  bytes signature = 6;
+}
+
+// MsgSubmitProofResponse is the response for MsgSubmitProof
+message MsgSubmitProofResponse {
+  string job_id = 1;
+  string status = 2;
+  string reward = 3;
+}
+
+// MsgCancelJob defines a message to cancel a job
+message MsgCancelJob {
+  string job_id = 1;
+  string submitter = 2;
+}
+
+// MsgCancelJobResponse is the response for MsgCancelJob
+message MsgCancelJobResponse {
+  string job_id = 1;
+  string status = 2;
+}
+
+// MsgClaimReward defines a message to claim pending rewards
+message MsgClaimReward {
+  string node_address = 1;
+}
+
+// MsgClaimRewardResponse is the response for MsgClaimReward
+message MsgClaimRewardResponse {
+  string amount = 1;
+}
+
+// Query services
+
+// QueryParamsRequest is the request type for the Query/Params RPC method.
+message QueryParamsRequest {}
+
+// QueryParamsResponse is the response type for the Query/Params RPC method.
+message QueryParamsResponse {
+  Params params = 1;
+}
+
+// QueryJobRequest is the request type for the Query/Job RPC method.
+message QueryJobRequest {
+  string job_id = 1;
+}
+
+// QueryJobResponse is the response type for the Query/Job RPC method.
+message QueryJobResponse {
+  Job job = 1;
+}
+
+// QueryJobsRequest is the request type for the Query/Jobs RPC method.
+message QueryJobsRequest {}
+
+// QueryJobsResponse is the response type for the Query/Jobs RPC method.
+message QueryJobsResponse {
+  repeated Job jobs = 1;
+}
+
+// QueryJobsBySubmitterRequest is the request type for Query/JobsBySubmitter
+message QueryJobsBySubmitterRequest {
+  string submitter = 1;
+}
+
+// QueryJobsBySubmitterResponse is the response for Query/JobsBySubmitter
+message QueryJobsBySubmitterResponse {
+  repeated Job jobs = 1;
+}
+
+// QueryJobsByComputeNodeRequest is the request type for Query/JobsByComputeNode
+message QueryJobsByComputeNodeRequest {
+  string node_address = 1;
+}
+
+// QueryJobsByComputeNodeResponse is the response for Query/JobsByComputeNode
+message QueryJobsByComputeNodeResponse {
+  repeated Job jobs = 1;
+}
+
+// QueryProofRequest is the request type for the Query/Proof RPC method.
+message QueryProofRequest {
+  string job_id = 1;
+}
+
+// QueryProofResponse is the response type for the Query/Proof RPC method.
+message QueryProofResponse {
+  ComputeProof proof = 1;
+}
+
+// QueryDifficultyRequest is the request type for Query/Difficulty
+message QueryDifficultyRequest {}
+
+// QueryDifficultyResponse is the response for Query/Difficulty
+message QueryDifficultyResponse {
+  uint64 current_difficulty = 1;
+  uint64 jobs_in_period = 2;
+  int64 blocks_to_adjustment = 3;
+}
+
+// QueryRewardStatsRequest is the request type for Query/RewardStats
+message QueryRewardStatsRequest {}
+
+// QueryRewardStatsResponse is the response for Query/RewardStats
+message QueryRewardStatsResponse {
+  string total_distributed = 1;
+  uint64 total_jobs = 2;
+  string max_supply = 3;
+}
+
+// QueryPendingRewardRequest is the request type for Query/PendingReward
+message QueryPendingRewardRequest {
+  string node_address = 1;
+}
+
+// QueryPendingRewardResponse is the response for Query/PendingReward
+message QueryPendingRewardResponse {
+  cosmos.base.v1beta1.Coin amount = 1;
+}
+
+// Msg service definition
+service Msg {
+  // SubmitJob submits a new compute job
+  rpc SubmitJob(MsgSubmitJob) returns (MsgSubmitJobResponse);
+  // SubmitProof submits a compute proof
+  rpc SubmitProof(MsgSubmitProof) returns (MsgSubmitProofResponse);
+  // CancelJob cancels a pending job
+  rpc CancelJob(MsgCancelJob) returns (MsgCancelJobResponse);
+  // ClaimReward claims pending rewards
+  rpc ClaimReward(MsgClaimReward) returns (MsgClaimRewardResponse);
+}
+
+// Query service definition
+service Query {
+  // Params queries the module parameters
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse);
+  // Job queries a specific job by ID
+  rpc Job(QueryJobRequest) returns (QueryJobResponse);
+  // Jobs queries all jobs
+  rpc Jobs(QueryJobsRequest) returns (QueryJobsResponse);
+  // JobsBySubmitter queries jobs by submitter
+  rpc JobsBySubmitter(QueryJobsBySubmitterRequest) returns (QueryJobsBySubmitterResponse);
+  // JobsByComputeNode queries jobs by compute node
+  rpc JobsByComputeNode(QueryJobsByComputeNodeRequest) returns (QueryJobsByComputeNodeResponse);
+  // Proof queries a proof by job ID
+  rpc Proof(QueryProofRequest) returns (QueryProofResponse);
+  // Difficulty queries the current difficulty
+  rpc Difficulty(QueryDifficultyRequest) returns (QueryDifficultyResponse);
+  // RewardStats queries reward statistics
+  rpc RewardStats(QueryRewardStatsRequest) returns (QueryRewardStatsResponse);
+  // PendingReward queries pending reward for a node
+  rpc PendingReward(QueryPendingRewardRequest) returns (QueryPendingRewardResponse);
 }
