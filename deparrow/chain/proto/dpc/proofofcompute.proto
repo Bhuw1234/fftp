@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package dpc.proofofcompute;
+
+option go_package = "github.com/deparrow/dpc/x/proofofcompute/types";
+
+import "gogoproto/gogo.proto";
+import "cosmos/base/v1beta1/coin.proto";
+import "google/protobuf/timestamp.proto";
+
+// Job represents a compute job in the DEparrow network
+message Job {
+  string id = 1;
+  string submitter = 2;      // Cosmos address
+  string compute_node = 3;   // Cosmos address
+  bytes spec = 4;            // Job specification (Bacalhau Job spec)
+  bytes result = 5;          // IPFS CID of results
+  cosmos.base.v1beta1.Coin stake = 6;
+  cosmos.base.v1beta1.Coin reward = 7;
+  JobStatus status = 8;
+  uint64 compute_units = 9;  // CPU-hours, GPU-hours
+  int64 created_at = 10;
+  int64 completed_at = 11;
+}
+
+enum JobStatus {
+  JOB_STATUS_UNSPECIFIED = 0;
+  JOB_STATUS_PENDING = 1;
+  JOB_STATUS_RUNNING = 2;
+  JOB_STATUS_COMPLETED = 3;
+  JOB_STATUS_FAILED = 4;
+  JOB_STATUS_CANCELLED = 5;
+}
+
+// ComputeProof represents proof of computation
+message ComputeProof {
+  string job_id = 1;
+  string node_id = 2;
+  uint64 compute_units = 3;
+  int64 execution_time = 4;
+  bytes output_hash = 5;     // Deterministic hash
+  bytes signature = 6;       // Node signature
+}
+
+// Params defines the parameters for the proofofcompute module.
+message Params {
+  uint64 min_compute_units = 1;      // Minimum compute units for reward
+  string reward_per_unit = 2;        // DPC reward per compute unit
+  uint64 difficulty_adjustment = 3;  // Difficulty adjustment period (blocks)
+  uint32 target_block_time = 4;      // Target block time in seconds
+}

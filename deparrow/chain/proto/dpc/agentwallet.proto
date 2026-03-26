@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package dpc.agentwallet;
+
+option go_package = "github.com/deparrow/dpc/x/agentwallet/types";
+
+import "gogoproto/gogo.proto";
+import "cosmos/base/v1beta1/coin.proto";
+
+// AgentWallet represents an AI agent's wallet
+message AgentWallet {
+  string did = 1;               // did:deparrow:agent:<uuid>
+  string address = 2;           // Cosmos address
+  cosmos.base.v1beta1.Coin balance = 3;
+  repeated SpendingRule spending_rules = 4;
+  repeated AutomationRule automation_rules = 5;
+  cosmos.base.v1beta1.Coin emergency_reserve = 6;
+  int64 created_at = 7;
+}
+
+// SpendingRule defines rules for spending
+message SpendingRule {
+  cosmos.base.v1beta1.Coin max_per_tx = 1;
+  cosmos.base.v1beta1.Coin daily_budget = 2;
+  repeated string allowed_ops = 3;    // ["submit_job", "pay_service"]
+  repeated string blocked_ops = 4;    // ["external_transfer"]
+}
+
+// AutomationRule defines automation triggers
+message AutomationRule {
+  string trigger = 1;          // "balance_below", "job_completed", etc.
+  string action = 2;           // "buy_compute", "transfer_to_reserve"
+  cosmos.base.v1beta1.Coin amount = 3;
+  bool enabled = 4;
+}
+
+// Params defines the parameters for the agentwallet module.
+message Params {
+  uint32 max_rules_per_wallet = 1;
+  string min_emergency_reserve = 2;
+  bool allow_external_transfers = 3;
+}

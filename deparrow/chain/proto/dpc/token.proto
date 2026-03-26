@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package dpc;
+
+option go_package = "github.com/deparrow/dpc/x/token/types";
+
+// DPC Token Parameters
+message Params {
+  string denom = 1;
+  uint32 decimals = 2;
+  string max_supply = 3;    // as string to handle large numbers
+  string initial_supply = 4;
+}
+
+// GenesisState defines the token module's genesis state.
+message GenesisState {
+  Params params = 1;
+}

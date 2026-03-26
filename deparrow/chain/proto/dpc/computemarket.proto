@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package dpc.computemarket;
+
+option go_package = "github.com/deparrow/dpc/x/computemarket/types";
+
+import "gogoproto/gogo.proto";
+import "cosmos/base/v1beta1/coin.proto";
+
+// Provider represents a compute provider in the network
+message Provider {
+  string address = 1;
+  cosmos.base.v1beta1.Coin staked_amount = 2;
+  uint32 reputation_score = 3;  // 0-1000
+  bytes capabilities = 4;       // CPU, GPU, memory specs
+  uint64 completed_jobs = 5;
+  uint64 failed_jobs = 6;
+  bool active = 7;
+}
+
+// Escrow represents an escrow contract for job payment
+message Escrow {
+  string job_id = 1;
+  string submitter = 2;
+  string provider = 3;
+  cosmos.base.v1beta1.Coin amount = 4;
+  EscrowStatus status = 5;
+  int64 deadline = 6;
+  int64 created_at = 7;
+}
+
+enum EscrowStatus {
+  ESCROW_STATUS_UNSPECIFIED = 0;
+  ESCROW_STATUS_LOCKED = 1;
+  ESCROW_STATUS_RELEASED = 2;
+  ESCROW_STATUS_REFUNDED = 3;
+  ESCROW_STATUS_DISPUTED = 4;
+}
+
+// Params defines the parameters for the computemarket module.
+message Params {
+  string min_stake = 1;           // Minimum stake for providers
+  uint32 dispute_period = 2;      // Dispute period in blocks
+  uint32 max_job_duration = 3;    // Maximum job duration in seconds
+}
