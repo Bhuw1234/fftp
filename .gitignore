@@ -79,3 +79,4 @@ webui/compiled/*
 # Go test binaries
 *.test# Bootable ISO output (too large for GitHub)
 deparrow/bootable/output/
+deparrow/metaos-layer/venv/
