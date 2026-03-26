@@ -1130,7 +1130,11 @@ deparrow/bootable/
     └── deparrow-alpine.iso       (49MB)
 
 deparrow/docs/
-└── DPC-TOKEN-DESIGN.md    # DPC 代币设计文档
+├── DPC-TOKEN-DESIGN.md        # DPC 代币设计文档
+├── DPC-IMPLEMENTATION-PLAN.md # DPC Phase 3 实现计划 (2026-03-26)
+└── SOCIAL-APP-DESIGN.md       # 社交 App 原型设计文档 (2026-03-26)
+├── DPC-IMPLEMENTATION-PLAN.md # DPC Phase 3 实现计划
+└── SOCIAL-APP-DESIGN.md       # 社交 App 原型设计文档
 
 webui/
 ├── app/ (Next.js App Router)
@@ -1170,7 +1174,7 @@ deparrow/k8s/base/
 |-------|------|--------|
 | Phase 1 | Core Platform | ✅ COMPLETE |
 | Phase 2 | Token Design | ✅ COMPLETE |
-| Phase 3 | Smart Contracts | Pending (1-2 月) |
+| Phase 3 | Smart Contracts | 📋 Plan Ready (see DPC-IMPLEMENTATION-PLAN.md) |
 | Phase 4 | Mainnet Launch | Pending (2-3 月) |
 | Phase 5 | AI Agent Wallets | Pending (3-4 月) |
 
