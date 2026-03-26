@@ -4,6 +4,7 @@ import (
 	fmt "fmt"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"cosmossdk.io/math"
 )
 
 const (
@@ -24,125 +25,94 @@ const (
 )
 
 // AgentWallet represents an AI agent's wallet
+// Note: Detailed implementation in wallet.go
 type AgentWallet struct {
-	DID              string
-	Address          string
-	Balance          sdk.Coin
-	SpendingRules    []SpendingRule
-	AutomationRules  []AutomationRule
-	EmergencyReserve sdk.Coin
-	CreatedAt        int64
+	DID              string          `json:"did"`
+	Address          string          `json:"address"`
+	Balance          sdk.Coin        `json:"balance"`
+	SpendingRules    []SpendingRule  `json:"spending_rules"`
+	AutomationRules  []AutomationRule `json:"automation_rules"`
+	EmergencyReserve sdk.Coin        `json:"emergency_reserve"`
+	CreatedAt        int64           `json:"created_at"`
 }
 
 // SpendingRule defines rules for spending
+// Note: Detailed implementation in rules.go
 type SpendingRule struct {
-	MaxPerTx    sdk.Coin
-	DailyBudget sdk.Coin
-	AllowedOps  []string // ["submit_job", "pay_service"]
-	BlockedOps  []string // ["external_transfer"]
+	MaxPerTx    sdk.Coin  `json:"max_per_tx"`
+	DailyBudget sdk.Coin  `json:"daily_budget"`
+	AllowedOps  []string  `json:"allowed_ops"`
+	BlockedOps  []string  `json:"blocked_ops"`
 }
 
 // AutomationRule defines automation triggers
+// Note: Detailed implementation in rules.go
 type AutomationRule struct {
-	Trigger string        // "balance_below", "job_completed", etc.
-	Action  string        // "buy_compute", "transfer_to_reserve"
-	Amount  sdk.Coin      // Amount for the action
-	Enabled bool          // Whether the rule is active
-}
-
-// NewAgentWallet creates a new AgentWallet instance
-func NewAgentWallet(did, address string) *AgentWallet {
-	return &AgentWallet{
-		DID:     did,
-		Address: address,
-		Balance: sdk.NewCoin("dpc", sdk.ZeroInt()),
-		SpendingRules: []SpendingRule{
-			{
-				MaxPerTx:    sdk.NewCoin("dpc", sdk.NewInt(1000)),
-				DailyBudget: sdk.NewCoin("dpc", sdk.NewInt(10000)),
-				AllowedOps:  []string{"submit_job", "pay_service"},
-				BlockedOps:  []string{},
-			},
-		},
-		AutomationRules:  []AutomationRule{},
-		EmergencyReserve: sdk.NewCoin("dpc", sdk.NewInt(100)),
-	}
-}
-
-// Validate performs basic validation of the wallet
-func (w AgentWallet) Validate() error {
-	if w.DID == "" {
-		return fmt.Errorf("DID cannot be empty")
-	}
-	if w.Address == "" {
-		return fmt.Errorf("address cannot be empty")
-	}
-	if w.Balance.IsNegative() {
-		return fmt.Errorf("balance cannot be negative")
-	}
-	if w.EmergencyReserve.IsNegative() {
-		return fmt.Errorf("emergency reserve cannot be negative")
-	}
-	return nil
-}
-
-// CanSpend checks if the wallet can spend the given amount
-func (w AgentWallet) CanSpend(amount sdk.Coin, operation string) bool {
-	// Check balance
-	if w.Balance.IsLT(amount) {
-		return false
-	}
-
-	// Check spending rules
-	for _, rule := range w.SpendingRules {
-		// Check if operation is blocked
-		for _, blocked := range rule.BlockedOps {
-			if blocked == operation {
-				return false
-			}
-		}
-
-		// Check if operation is allowed
-		allowed := len(rule.AllowedOps) == 0 // Empty means all allowed
-		for _, op := range rule.AllowedOps {
-			if op == operation {
-				allowed = true
-				break
-			}
-		}
-		if !allowed {
-			return false
-		}
-
-		// Check max per transaction
-		if !rule.MaxPerTx.IsZero() && amount.IsGT(rule.MaxPerTx) {
-			return false
-		}
-	}
-
-	return true
+	Trigger string    `json:"trigger"`
+	Action  string    `json:"action"`
+	Amount  sdk.Coin  `json:"amount"`
+	Enabled bool      `json:"enabled"`
 }
 
 // Params defines the parameters for the agentwallet module.
 type Params struct {
-	MaxRulesPerWallet    uint32
-	MinEmergencyReserve  sdk.Coin
-	AllowExternalTransfers bool
+	MaxRulesPerWallet      uint32  `json:"max_rules_per_wallet"`
+	MinEmergencyReserve    string  `json:"min_emergency_reserve"`
+	AllowExternalTransfers bool    `json:"allow_external_transfers"`
+	MaxDailyBudget         string  `json:"max_daily_budget"`
+	AutonomousTxEnabled    bool    `json:"autonomous_tx_enabled"`
 }
 
 // DefaultParams returns default agentwallet module parameters
 func DefaultParams() Params {
 	return Params{
-		MaxRulesPerWallet:     10,
-		MinEmergencyReserve:   sdk.NewCoin("dpc", sdk.NewInt(100)),
+		MaxRulesPerWallet:      10,
+		MinEmergencyReserve:    "100000000000000000", // 0.1 DPC (18 decimals)
 		AllowExternalTransfers: false,
+		MaxDailyBudget:         "1000000000000000000000", // 1000 DPC
+		AutonomousTxEnabled:    true,
 	}
 }
 
 // Validate validates the params
 func (p Params) Validate() error {
-	if p.MinEmergencyReserve.IsNegative() {
-		return fmt.Errorf("min emergency reserve cannot be negative")
+	if p.MaxRulesPerWallet == 0 {
+		return fmt.Errorf("max rules per wallet must be positive")
 	}
+
+	// Validate min emergency reserve
+	if p.MinEmergencyReserve != "" {
+		_, ok := math.NewIntFromString(p.MinEmergencyReserve)
+		if !ok {
+			return fmt.Errorf("invalid min emergency reserve: %s", p.MinEmergencyReserve)
+		}
+	}
+
+	// Validate max daily budget
+	if p.MaxDailyBudget != "" {
+		_, ok := math.NewIntFromString(p.MaxDailyBudget)
+		if !ok {
+			return fmt.Errorf("invalid max daily budget: %s", p.MaxDailyBudget)
+		}
+	}
+
 	return nil
+}
+
+// GetMinEmergencyReserve returns the min emergency reserve as math.Int
+func (p Params) GetMinEmergencyReserve() math.Int {
+	val, ok := math.NewIntFromString(p.MinEmergencyReserve)
+	if !ok {
+		return math.ZeroInt()
+	}
+	return val
+}
+
+// GetMaxDailyBudget returns the max daily budget as math.Int
+func (p Params) GetMaxDailyBudget() math.Int {
+	val, ok := math.NewIntFromString(p.MaxDailyBudget)
+	if !ok {
+		return math.ZeroInt()
+	}
+	return val
 }
