@@ -96,7 +96,7 @@
 └───────────────────────────────────────────────────────────────┘
 ```
 
-### ISO 镜像 - 生产就绪 (2026-03-26)
+### ISO 镜像 - 生产就绪 (2026-03-28)
 
 **可用 ISO 文件:**
 
@@ -1007,7 +1007,7 @@ MOBILE APP: 0% ░░░░░░░░░░░░░░░░░░░░
 └── Embedded Compute         0% ░░░░░░░░░░░░░░░░░░░░
 ```
 
-### GCP 部署状态 (2026-03-26) ✅ LIVE
+### GCP 部署状态 (2026-03-28) ✅ LIVE
 
 | 组件 | 状态 | 端点 |
 |------|------|------|
@@ -1028,7 +1028,7 @@ BACALHAU_API_HOST=34.180.51.11 ./bacalhau docker run ubuntu echo "Hello"
 BACALHAU_API_HOST=34.180.51.11 ./bacalhau node list
 ```
 
-### 最近完成 (2026-03-26)
+### 最近完成 (2026-03-28)
 
 | 里程碑 | 状态 | 说明 |
 |--------|------|------|
@@ -1044,6 +1044,10 @@ BACALHAU_API_HOST=34.180.51.11 ./bacalhau node list
 | - GRUB 菜单 | ✅ | "DEparrow OS" 菜单项 |
 | - Alpine Minirootfs | ✅ | 官方 Alpine 3.20 基础 |
 | - 品牌版 ISO | ✅ | deparrow-os-1.0.0.iso (81MB) |
+| **DPC 区块链模块** | ✅ 完成 | 2026-03-26 |
+| - Proof-of-Compute | ✅ | 作业提交、证明验证、奖励分发 |
+| - ComputeMarket | ✅ | 提供者质押、作业托管、声誉系统 |
+| - AgentWallet | ✅ | DID 身份、消费规则、自动化触发器 |
 
 ### ISO 功能状态
 
@@ -1063,7 +1067,7 @@ BACALHAU_API_HOST=34.180.51.11 ./bacalhau node list
 | **GCP Bootstrap Server** | ✅ 运行中 | http://34.180.51.11:8080 |
 | **GCP Compute Node** | ✅ 运行中 | http://34.180.51.11:1234 |
 | DNS (bootstrap.deparrow.net) | ⚠️ 可选 | 可指向 34.180.51.11 |
-| DPC 区块链 | ❌ 待开发 | Phase 3-5 开发 |
+| DPC 区块链 | 🔄 开发中 | Phase 3 模块已完成 |
 
 ### 零风险品牌化实现 (2026-03-22)
 
@@ -1093,6 +1097,7 @@ cd deparrow/bootable
 | WebUI | 3713 TS/TSX | 24 | Next.js 15 + React 组件 |
 | PicoClaw DEparrow | 14 | 7 | 87%+ 覆盖率 |
 | pkg/globalvm | 18 | - | Global VM 实现 |
+| DPC Chain Modules | 58 | - | Cosmos SDK 模块 |
 | K8s Manifests | 22 | - | base/*.yaml |
 | Python Tests | - | 91 | 完整覆盖 |
 | GRUB BIOS 模块 | 304 | - | i386-pc/ |
@@ -1140,22 +1145,12 @@ deparrow/docs/
 └── SOCIAL-APP-DESIGN.md       # 社交 App 原型设计文档 (2026-03-26)
 
 deparrow/chain/                  # DPC 区块链 (Cosmos SDK)
-├── app/                         # 应用配置
+├── app/                         # 应用层 (58 Go 文件)
 ├── cmd/dpcd/                    # 守护进程
-├── proto/dpc/                   # Protobuf 定义
-├── x/proofofcompute/            # PoC 共识模块
-├── x/computemarket/             # 计算市场模块
-└── x/agentwallet/               # AI Agent 钱包模块
-
-deparrow/chain/                   # DPC 区块链 (Cosmos SDK)
-├── app/                          # 应用层 (58 Go 文件)
-├── cmd/dpcd/                     # 守护进程
-├── proto/dpc/                    # Proto 定义
-├── x/proofofcompute/             # Proof-of-Compute 模块 ✅
-├── x/computemarket/              # 计算市场模块 ✅
-└── x/agentwallet/                # AI Agent 钱包模块 ✅
-├── DPC-IMPLEMENTATION-PLAN.md # DPC Phase 3 实现计划
-└── SOCIAL-APP-DESIGN.md       # 社交 App 原型设计文档
+├── proto/dpc/                   # Proto 定义
+├── x/proofofcompute/            # Proof-of-Compute 模块 ✅
+├── x/computemarket/             # 计算市场模块 ✅
+└── x/agentwallet/               # AI Agent 钱包模块 ✅
 
 webui/
 ├── app/ (Next.js App Router)
@@ -1199,6 +1194,56 @@ deparrow/k8s/base/
 | Phase 4 | Mainnet Launch | Pending (2-3 月) |
 | Phase 5 | AI Agent Wallets | Pending (3-4 月) |
 
+### DPC 区块链模块详情
+
+#### 1. Proof-of-Compute Module (x/proofofcompute)
+
+**功能:**
+- 作业提交和验证
+- 计算证明生成和验证
+- 奖励分发机制
+- 难度调整算法
+
+**核心组件:**
+- `abci.go` - ABCI 应用逻辑
+- `handler.go` - 消息处理
+- `keeper/` - 状态管理
+- `types/` - 类型定义
+
+#### 2. ComputeMarket Module (x/computemarket)
+
+**功能:**
+- 提供者注册和质押
+- 作业托管系统
+- 声誉评分机制
+- 争议解决流程
+
+**核心组件:**
+- `handler.go` - 消息处理
+- `keeper/` - 状态管理
+- `types/` - 类型定义
+
+#### 3. AgentWallet Module (x/agentwallet)
+
+**功能:**
+- DID 身份管理
+- 自动化消费规则
+- 触发器设置
+- 多签钱包支持
+
+**核心组件:**
+- `handler.go` - 消息处理
+- `keeper/` - 状态管理
+- `types/` - 类型定义
+
+**技术参数:**
+| 参数 | 值 |
+|------|-----|
+| 区块链框架 | Cosmos SDK v0.50.12 |
+| 共识引擎 | CometBFT v0.38.17 |
+| Go 版本 | 1.24.0 |
+| 模块总代码量 | ~11,125 行 |
+
 ---
 
 ## 基础设施部署指南
@@ -1206,7 +1251,7 @@ deparrow/k8s/base/
 ### 当前分支状态
 
 **Git 分支:** `main`
-**最新提交:** 0653b9bcd - feat: GCP deployment complete and project status update to 95%
+**最新提交:** a2c64bfc9 - docs: Update IFLOW.md with DPC blockchain progress
 
 ### GCP 部署 (已运行)
 
@@ -1274,8 +1319,9 @@ bootstrap.deparrow.net → A record → VPS 公网 IP
 
 | 优先级 | 功能 | 说明 |
 |--------|------|------|
-| HIGH | DPC 智能合约 | Cosmos SDK 模块开发 |
-| HIGH | DPC 主网启动 | 创世区块、验证者、代币分发 |
+| HIGH | DPC Proto 生成 | 生成 Protobuf 文件 |
+| HIGH | DPC 测试网启动 | 创世区块、验证者 |
+| HIGH | DPC 主网启动 | 代币分发、主网上线 |
 | MEDIUM | 社交 App 原型 | "使用即赚钱" 移动应用 |
 | MEDIUM | DNS 配置 | bootstrap.deparrow.net → GCP IP |
 | MEDIUM | 用户友好 ISO 启动 | TUI 仪表板、进度消息 |
@@ -1346,7 +1392,7 @@ Apache 2.0 许可证
 
 ---
 
-*文档最后更新: 2026-03-26*
+*文档最后更新: 2026-03-28*
 
 ---
 
@@ -1354,6 +1400,8 @@ Apache 2.0 许可证
 
 **GCP 部署完成 - 34.180.51.11 运行中 ✅**
 
+**DPC 区块链模块完成 - 3 个 Cosmos SDK 模块 ✅**
+
 **零风险品牌化完成 - 无 Go 代码修改**
 
-**下一步: DPC 区块链开发 (Phase 3-5) + 社交 App 原型**
+**下一步: DPC Proto 生成 → 测试网启动 → 主网上线**
