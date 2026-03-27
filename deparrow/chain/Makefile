@@ -61,11 +61,24 @@ clean:
 ## proto-gen: Generate protobuf code (requires protoc)
 proto-gen:
 	@echo "Generating protobuf files..."
-	@for dir in $(shell find ./proto -name '*.proto' -exec dirname {} \; | sort -u); do \
-		protoc --go_out=. --go_opt=paths=source_relative \
+	@for proto_file in $(shell find ./proto -name '*.proto'); do \
+		protoc \
+			-I./proto \
+			-I/tmp/protoc/include \
+			-I$(shell go env GOPATH)/pkg/mod/github.com/cosmos/gogoproto@v1.7.0 \
+			-I$(shell go env GOPATH)/pkg/mod/github.com/cosmos/cosmos-sdk@v0.50.12/proto \
+			-I$(shell go env GOPATH)/pkg/mod/github.com/cosmos/cosmos-proto@v1.0.0-beta.5/proto \
+			--go_out=. --go_opt=paths=source_relative \
 			--go-grpc_out=. --go-grpc_opt=paths=source_relative \
-			-I./proto $$dir/*.proto; \
+			$proto_file; \
 	done
+	@echo "Copying generated files to module types directories..."
+	@cp -f dpc/proofofcompute*.pb.go x/proofofcompute/types/ 2>/dev/null || true
+	@cp -f dpc/computemarket*.pb.go x/computemarket/types/ 2>/dev/null || true
+	@cp -f dpc/agentwallet*.pb.go x/agentwallet/types/ 2>/dev/null || true
+	@cp -f dpc/token*.pb.go x/token/types/ 2>/dev/null || true
+	@rm -rf dpc/
+	@echo "Proto generation complete!"
 
 ## init: Initialize a new node (for development)
 init:
