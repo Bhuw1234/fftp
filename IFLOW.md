@@ -967,7 +967,7 @@ kubectl apply -k deparrow/k8s/overlays/production
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                    DEPARROW PROJECT STATUS                      │
-│                        ~95% COMPLETE                            │
+│                        ~96% COMPLETE                            │
 └─────────────────────────────────────────────────────────────────┘
 
 CORE PLATFORM: 100% ████████████████████
@@ -990,14 +990,15 @@ DEPLOYMENT: 100% ████████████████████ �
 ├── Docker Compose        100% ████████████████████
 └── Live Infrastructure  100% ████████████████████ (GCP: 34.180.51.11)
 
-DPC TOKEN: 50% ██████████░░░░░░░░░░░░
+DPC TOKEN: 60% ████████████░░░░░░░░░░
 ├── Token Design Doc      100% ████████████████████
 ├── Implementation Plan   100% ████████████████████
 ├── Cosmos SDK Scaffold   100% ████████████████████
 ├── PoC Module            100% ████████████████████
 ├── ComputeMarket Module  100% ████████████████████
 ├── AgentWallet Module    100% ████████████████████
-├── Proto Generation        0% ░░░░░░░░░░░░░░░░░░░░
+├── Proto Generation      100% ████████████████████ ✅ (4 proto files)
+├── Minimal Build         100% ████████████████████ ✅ (5.7MB binary)
 ├── Testnet Launch          0% ░░░░░░░░░░░░░░░░░░░░
 └── Mainnet Launch          0% ░░░░░░░░░░░░░░░░░░░░
 
@@ -1038,6 +1039,8 @@ BACALHAU_API_HOST=34.180.51.11 ./bacalhau node list
 | WiFi 支持 | ✅ 完成 | f21251552 |
 | DPC Token 设计文档 | ✅ 完成 | f21251552 |
 | Bootstrap 安全加固 | ✅ 完成 | f21251552 |
+| **DPC Proto 生成** | ✅ 完成 | c35e052f8 (4 proto 文件) |
+| **DPC 测试网最小构建** | ✅ 完成 | c35e052f8 (5.7MB binary) |
 | **DEparrow 品牌化 (Zero-Risk)** | ✅ 完成 | 2026-03-22 |
 | - CLI Wrapper (bin/deparrow) | ✅ | deparrow 命令封装 bacalhau |
 | - ASCII Banner | ✅ | DEparrow 专属启动横幅 |
@@ -1067,7 +1070,8 @@ BACALHAU_API_HOST=34.180.51.11 ./bacalhau node list
 | **GCP Bootstrap Server** | ✅ 运行中 | http://34.180.51.11:8080 |
 | **GCP Compute Node** | ✅ 运行中 | http://34.180.51.11:1234 |
 | DNS (bootstrap.deparrow.net) | ⚠️ 可选 | 可指向 34.180.51.11 |
-| DPC 区块链 | 🔄 开发中 | Phase 3 模块已完成 |
+| DPC 区块链 | ✅ Proto 完成 | 4 proto 文件 + 最小构建 |
+| DPC 测试网 | ⏳ 待启动 | 需 Go 1.21 完整构建 |
 
 ### 零风险品牌化实现 (2026-03-22)
 
@@ -1097,7 +1101,8 @@ cd deparrow/bootable
 | WebUI | 3713 TS/TSX | 24 | Next.js 15 + React 组件 |
 | PicoClaw DEparrow | 14 | 7 | 87%+ 覆盖率 |
 | pkg/globalvm | 18 | - | Global VM 实现 |
-| DPC Chain Modules | 58 | - | Cosmos SDK 模块 |
+| DPC Chain Proto | 4 proto | - | Cosmos SDK 模块定义 |
+| DPC Chain Build | 1 Go | - | 最小构建 (5.7MB) |
 | K8s Manifests | 22 | - | base/*.yaml |
 | Python Tests | - | 91 | 完整覆盖 |
 | GRUB BIOS 模块 | 304 | - | i386-pc/ |
@@ -1145,12 +1150,16 @@ deparrow/docs/
 └── SOCIAL-APP-DESIGN.md       # 社交 App 原型设计文档 (2026-03-26)
 
 deparrow/chain/                  # DPC 区块链 (Cosmos SDK)
-├── app/                         # 应用层 (58 Go 文件)
-├── cmd/dpcd/                    # 守护进程
-├── proto/dpc/                   # Proto 定义
-├── x/proofofcompute/            # Proof-of-Compute 模块 ✅
-├── x/computemarket/             # 计算市场模块 ✅
-└── x/agentwallet/               # AI Agent 钱包模块 ✅
+├── build/dpcd                   # 最小构建二进制 (5.7MB) ✅
+├── cmd/dpcd/                    # 守护进程入口
+├── proto/dpc/                   # Proto 定义 (4 文件) ✅
+│   ├── token.proto              # DPC 代币参数
+│   ├── proofofcompute.proto     # Proof-of-Compute 模块
+│   ├── computemarket.proto      # 计算市场模块
+│   └── agentwallet.proto        # AI Agent 钱包模块
+├── testutil/                    # 测试工具
+├── Makefile                     # 构建配置
+└── TESTNET_STATUS.md            # 测试网状态文档
 
 webui/
 ├── app/ (Next.js App Router)
@@ -1190,11 +1199,21 @@ deparrow/k8s/base/
 |-------|------|--------|
 | Phase 1 | Core Platform | ✅ COMPLETE |
 | Phase 2 | Token Design | ✅ COMPLETE |
-| Phase 3 | Smart Contracts | ✅ Modules Implemented (PoC, ComputeMarket, AgentWallet) |
+| Phase 3 | Smart Contracts | ✅ Modules + Proto Complete |
+| Phase 3.5 | Testnet Build | ✅ Minimal Build (5.7MB) |
 | Phase 4 | Mainnet Launch | Pending (2-3 月) |
 | Phase 5 | AI Agent Wallets | Pending (3-4 月) |
 
 ### DPC 区块链模块详情
+
+#### Proto 文件 (已完成 ✅)
+
+| 文件 | 说明 |
+|------|------|
+| `proto/dpc/token.proto` | DPC 代币参数定义 |
+| `proto/dpc/proofofcompute.proto` | Proof-of-Compute 消息和服务 |
+| `proto/dpc/computemarket.proto` | 计算市场消息和服务 |
+| `proto/dpc/agentwallet.proto` | AI Agent 钱包消息和服务 |
 
 #### 1. Proof-of-Compute Module (x/proofofcompute)
 
@@ -1204,11 +1223,12 @@ deparrow/k8s/base/
 - 奖励分发机制
 - 难度调整算法
 
-**核心组件:**
-- `abci.go` - ABCI 应用逻辑
-- `handler.go` - 消息处理
-- `keeper/` - 状态管理
-- `types/` - 类型定义
+**Proto 定义:**
+- `Job` - 计算作业结构
+- `ComputeProof` - 计算证明
+- `MsgSubmitJob` - 提交作业消息
+- `MsgSubmitProof` - 提交证明消息
+- 奖励公式: `DPC = 0.001 × Complexity × ComputeUnits`
 
 #### 2. ComputeMarket Module (x/computemarket)
 
@@ -1218,11 +1238,6 @@ deparrow/k8s/base/
 - 声誉评分机制
 - 争议解决流程
 
-**核心组件:**
-- `handler.go` - 消息处理
-- `keeper/` - 状态管理
-- `types/` - 类型定义
-
 #### 3. AgentWallet Module (x/agentwallet)
 
 **功能:**
@@ -1231,18 +1246,31 @@ deparrow/k8s/base/
 - 触发器设置
 - 多签钱包支持
 
-**核心组件:**
-- `handler.go` - 消息处理
-- `keeper/` - 状态管理
-- `types/` - 类型定义
+#### 测试网状态 (TESTNET_STATUS.md)
+
+| 项目 | 状态 |
+|------|------|
+| 最小构建 | ✅ 完成 (5.7MB) |
+| 测试网初始化 | ✅ 完成 (dpc-testnet-1) |
+| Genesis 配置 | ✅ 完成 (DPC token, staking) |
+| 节点目录 | ~/.dpc/ |
+
+**网络配置:**
+| 服务 | 地址 |
+|------|------|
+| P2P | tcp://0.0.0.0:26656 |
+| RPC | tcp://0.0.0.0:26657 |
+| REST API | tcp://0.0.0.0:1317 |
+| gRPC | 0.0.0.0:9090 |
 
 **技术参数:**
 | 参数 | 值 |
 |------|-----|
 | 区块链框架 | Cosmos SDK v0.50.12 |
 | 共识引擎 | CometBFT v0.38.17 |
-| Go 版本 | 1.24.0 |
-| 模块总代码量 | ~11,125 行 |
+| Go 版本 | 1.24.0 (最小构建), 1.21 (完整构建) |
+| Proto 文件 | 4 个 |
+| 代币精度 | 18 位小数 |
 
 ---
 
@@ -1251,7 +1279,7 @@ deparrow/k8s/base/
 ### 当前分支状态
 
 **Git 分支:** `main`
-**最新提交:** a2c64bfc9 - docs: Update IFLOW.md with DPC blockchain progress
+**最新提交:** c35e052f8 - feat: DPC blockchain proto generation and minimal build complete
 
 ### GCP 部署 (已运行)
 
@@ -1319,7 +1347,7 @@ bootstrap.deparrow.net → A record → VPS 公网 IP
 
 | 优先级 | 功能 | 说明 |
 |--------|------|------|
-| HIGH | DPC Proto 生成 | 生成 Protobuf 文件 |
+| HIGH | DPC 完整构建 | 使用 Go 1.21 构建 Cosmos SDK |
 | HIGH | DPC 测试网启动 | 创世区块、验证者 |
 | HIGH | DPC 主网启动 | 代币分发、主网上线 |
 | MEDIUM | 社交 App 原型 | "使用即赚钱" 移动应用 |
@@ -1396,12 +1424,14 @@ Apache 2.0 许可证
 
 ---
 
-**DEparrow 核心平台已就绪 (~95%)**
+**DEparrow 核心平台已就绪 (~96%)**
 
 **GCP 部署完成 - 34.180.51.11 运行中 ✅**
 
-**DPC 区块链模块完成 - 3 个 Cosmos SDK 模块 ✅**
+**DPC 区块链 Proto 完成 - 4 个 Proto 文件 ✅**
+
+**DPC 测试网最小构建完成 - 5.7MB 二进制 ✅**
 
 **零风险品牌化完成 - 无 Go 代码修改**
 
-**下一步: DPC Proto 生成 → 测试网启动 → 主网上线**
+**下一步: DPC 完整构建 (Go 1.21) → 测试网启动 → 主网上线**
