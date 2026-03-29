@@ -12,6 +12,7 @@ import (
 
 	abcitypes "github.com/cometbft/cometbft/abci/types"
 	"github.com/dgraph-io/badger/v3"
+	proofofcompute "github.com/deparrow/dpc/x/proofofcompute"
 )
 
 const (
@@ -41,6 +42,9 @@ type DPCApplication struct {
 	db         *badger.DB
 	state      *PoCState
 	validators []abcitypes.ValidatorUpdate
+
+	// Modules
+	pocModule *proofofcompute.Module
 }
 
 // NewDPCApplication creates a new DPC blockchain application with persistence
@@ -72,6 +76,9 @@ func NewDPCApplication(dbPath string) *DPCApplication {
 		},
 		validators: make([]abcitypes.ValidatorUpdate, 0),
 	}
+
+	// Initialize proofofcompute module
+	app.pocModule = proofofcompute.NewModule(db)
 
 	// Load existing state from database
 	app.loadState()
@@ -172,6 +179,11 @@ func (app *DPCApplication) InitChain(ctx context.Context, req *abcitypes.Request
 
 	if err := json.Unmarshal(req.AppStateBytes, &genesisState); err == nil {
 		app.state.TotalSupply = InitialSupply
+
+		// Initialize proofofcompute module from genesis
+		if err := app.pocModule.InitGenesis(req.AppStateBytes); err != nil {
+			log.Printf("[DPC] Warning: failed to init proofofcompute genesis: %v", err)
+		}
 	}
 
 	// Store validators
@@ -217,6 +229,9 @@ func (app *DPCApplication) FinalizeBlock(ctx context.Context, req *abcitypes.Req
 
 	txs := make([]*abcitypes.ExecTxResult, len(req.Txs))
 
+	// Begin block for modules
+	app.pocModule.BeginBlock(req.Height)
+
 	for i, tx := range req.Txs {
 		// Parse transaction
 		var txData struct {
@@ -236,25 +251,68 @@ func (app *DPCApplication) FinalizeBlock(ctx context.Context, req *abcitypes.Req
 		switch txData.Type {
 		case "submit_job":
 			app.state.JobsSubmitted++
+			// Process through proofofcompute module
+			result, err := app.pocModule.ProcessTransaction(txData.Type, txData.Data, req.Height)
+			if err != nil {
+				txs[i] = &abcitypes.ExecTxResult{
+					Code: 2,
+					Log:  fmt.Sprintf("Failed to submit job: %v", err),
+				}
+				continue
+			}
 			txs[i] = &abcitypes.ExecTxResult{
 				Code: abcitypes.CodeTypeOK,
 				Log:  "Job submitted successfully",
+				Data: mustMarshal(result),
 			}
 
 		case "submit_proof":
 			app.state.JobsCompleted++
-			// Calculate reward based on compute units
-			var proof struct {
-				ComputeUnits uint64 `json:"compute_units"`
-				Complexity   uint64 `json:"complexity"`
+			// Process through proofofcompute module
+			result, err := app.pocModule.ProcessTransaction(txData.Type, txData.Data, req.Height)
+			if err != nil {
+				txs[i] = &abcitypes.ExecTxResult{
+					Code: 2,
+					Log:  fmt.Sprintf("Failed to submit proof: %v", err),
+				}
+				continue
 			}
-			if err := json.Unmarshal(txData.Data, &proof); err == nil {
-				// Reward calculation (simplified)
-				app.state.TotalRewards = fmt.Sprintf("%d", app.state.JobsCompleted*1000000000000000)
-			}
+			// Update total rewards
+			app.state.TotalRewards = fmt.Sprintf("%d", app.state.JobsCompleted*1000000000000000)
 			txs[i] = &abcitypes.ExecTxResult{
 				Code: abcitypes.CodeTypeOK,
 				Log:  "Proof verified, reward distributed",
+				Data: mustMarshal(result),
+			}
+
+		case "cancel_job":
+			result, err := app.pocModule.ProcessTransaction(txData.Type, txData.Data, req.Height)
+			if err != nil {
+				txs[i] = &abcitypes.ExecTxResult{
+					Code: 2,
+					Log:  fmt.Sprintf("Failed to cancel job: %v", err),
+				}
+				continue
+			}
+			txs[i] = &abcitypes.ExecTxResult{
+				Code: abcitypes.CodeTypeOK,
+				Log:  "Job cancelled",
+				Data: mustMarshal(result),
+			}
+
+		case "claim_reward":
+			result, err := app.pocModule.ProcessTransaction(txData.Type, txData.Data, req.Height)
+			if err != nil {
+				txs[i] = &abcitypes.ExecTxResult{
+					Code: 2,
+					Log:  fmt.Sprintf("Failed to claim reward: %v", err),
+				}
+				continue
+			}
+			txs[i] = &abcitypes.ExecTxResult{
+				Code: abcitypes.CodeTypeOK,
+				Log:  "Reward claimed",
+				Data: mustMarshal(result),
 			}
 
 		case "register_provider":
@@ -277,14 +335,8 @@ func (app *DPCApplication) FinalizeBlock(ctx context.Context, req *abcitypes.Req
 		}
 	}
 
-	// Adjust difficulty every 100 blocks
-	if app.state.CurrentHeight%100 == 0 && app.state.CurrentHeight > 0 {
-		if app.state.JobsCompleted > app.state.JobsSubmitted/2 {
-			app.state.CurrentDifficulty++
-		} else if app.state.CurrentDifficulty > 1 {
-			app.state.CurrentDifficulty--
-		}
-	}
+	// End block for modules (difficulty adjustment)
+	app.pocModule.EndBlock(req.Height)
 
 	// Update app hash
 	app.state.AppHash = []byte(fmt.Sprintf("dpc-block-%d", app.state.CurrentHeight))
@@ -296,6 +348,15 @@ func (app *DPCApplication) FinalizeBlock(ctx context.Context, req *abcitypes.Req
 		TxResults: txs,
 		AppHash:   app.state.AppHash,
 	}, nil
+}
+
+// mustMarshal marshals a value to JSON or returns empty bytes
+func mustMarshal(v interface{}) []byte {
+	bz, err := json.Marshal(v)
+	if err != nil {
+		return []byte{}
+	}
+	return bz
 }
 
 // Commit saves the application state to disk
@@ -316,6 +377,20 @@ func (app *DPCApplication) Commit(ctx context.Context, req *abcitypes.RequestCom
 func (app *DPCApplication) Query(ctx context.Context, req *abcitypes.RequestQuery) (*abcitypes.ResponseQuery, error) {
 	app.state.mu.RLock()
 	defer app.state.mu.RUnlock()
+
+	// Try proofofcompute module queries first
+	if result, err := app.pocModule.HandleQuery(req.Path, req.Data); result != nil {
+		if err != nil {
+			return &abcitypes.ResponseQuery{
+				Code: 1,
+				Log:  err.Error(),
+			}, nil
+		}
+		return &abcitypes.ResponseQuery{
+			Code:  abcitypes.CodeTypeOK,
+			Value: result,
+		}, nil
+	}
 
 	switch req.Path {
 	case "/status":
