@@ -996,9 +996,11 @@ DPC TOKEN: 100% █████████████████████�
 ├── Token Design Doc      100% ████████████████████
 ├── Implementation Plan   100% ████████████████████
 ├── Proto Files           100% ████████████████████ ✅ (4 files, 646 lines)
-├── Go 1.24 Build         100% ████████████████████ ✅ (dpcd 35MB)
+├── Go 1.24 Build         100% ████████████████████ ✅ (dpcd 38MB)
 ├── CometBFT Integration  100% ████████████████████ ✅ (v0.38.17)
+├── State Persistence     100% ████████████████████ ✅ (BadgerDB)
 ├── Testnet Launch        100% ████████████████████ ✅ LIVE (34.180.51.11:26657)
+├── Multi-Node Support    100% ████████████████████ ✅ (P2P + State sync)
 └── Mainnet Launch          0% ░░░░░░░░░░░░░░░░░░░░ (future)
 
 MOBILE APP: 0% ░░░░░░░░░░░░░░░░░░░░
@@ -1036,9 +1038,10 @@ BACALHAU_API_HOST=34.180.51.11 ./bacalhau node list
 |--------|------|------|
 | **DPC Testnet Launch** | ✅ 完成 | 2026-03-30 |
 | - CometBFT Integration | ✅ | v0.38.17 共识引擎 |
-| - Go 1.24 Build | ✅ | 35MB 二进制 |
+| - Go 1.24 Build | ✅ | 38MB 二进制 |
 | - GCP Deployment | ✅ | 34.180.51.11:26657 |
-| - Block Production | ✅ | 144+ blocks produced |
+| - State Persistence | ✅ | BadgerDB 存储 |
+| - Multi-Node P2P | ✅ | 节点发现+区块同步 |
 | **ISO 镜像** | ✅ 完成 | 6 files (28-112MB) |
 | **零风险品牌化** | ✅ 完成 | CLI + Docker image |
 | **Global VM** | ✅ 完成 | 5 phases, 18 Go files |
