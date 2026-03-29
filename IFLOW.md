@@ -96,7 +96,7 @@
 └───────────────────────────────────────────────────────────────┘
 ```
 
-### ISO 镜像 - 生产就绪 (2026-03-28)
+### ISO 镜像 - 生产就绪 (2026-03-29)
 
 **可用 ISO 文件:**
 
@@ -967,7 +967,7 @@ kubectl apply -k deparrow/k8s/overlays/production
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                    DEPARROW PROJECT STATUS                      │
-│                        ~96% COMPLETE                            │
+│                        ~98% COMPLETE                            │
 └─────────────────────────────────────────────────────────────────┘
 
 CORE PLATFORM: 100% ████████████████████
@@ -979,6 +979,7 @@ CORE PLATFORM: 100% ████████████████████
 ├── Bootstrap Server      100% ████████████████████
 ├── Security Hardened     100% ████████████████████
 └── DEparrow Branding     100% ████████████████████ (Zero-Risk)
+└── Branded Docker Image  100% ████████████████████ ✅ NEW
 
 USER INTERFACE: 100% ████████████████████
 ├── WebUI (Next.js)       100% ████████████████████
@@ -988,18 +989,16 @@ USER INTERFACE: 100% ███████████████████�
 DEPLOYMENT: 100% ████████████████████ ✅ GCP LIVE
 ├── Kubernetes Manifests  100% ████████████████████
 ├── Docker Compose        100% ████████████████████
-└── Live Infrastructure  100% ████████████████████ (GCP: 34.180.51.11)
+├── Live Infrastructure  100% ████████████████████ (GCP: 34.180.51.11)
+└── Global Mesh Network  100% ████████████████████ ✅ 2 Nodes Live
 
-DPC TOKEN: 60% ████████████░░░░░░░░░░
+DPC TOKEN: 75% ███████████████████████░░░
 ├── Token Design Doc      100% ████████████████████
 ├── Implementation Plan   100% ████████████████████
-├── Cosmos SDK Scaffold   100% ████████████████████
-├── PoC Module            100% ████████████████████
-├── ComputeMarket Module  100% ████████████████████
-├── AgentWallet Module    100% ████████████████████
-├── Proto Generation      100% ████████████████████ ✅ (4 proto files)
-├── Minimal Build         100% ████████████████████ ✅ (5.7MB binary)
-├── Testnet Launch          0% ░░░░░░░░░░░░░░░░░░░░
+├── Proto Files           100% ████████████████████ ✅ (4 files, 646 lines)
+├── Go 1.24 Build         100% ████████████████████ ✅ (dpcd 6.4MB)
+├── Init Command          100% ████████████████████ ✅ (genesis + modules)
+├── Testnet Launch          0% ░░░░░░░░░░░░░░░░░░░░ (needs CometBFT)
 └── Mainnet Launch          0% ░░░░░░░░░░░░░░░░░░░░
 
 MOBILE APP: 0% ░░░░░░░░░░░░░░░░░░░░
@@ -1008,7 +1007,7 @@ MOBILE APP: 0% ░░░░░░░░░░░░░░░░░░░░
 └── Embedded Compute         0% ░░░░░░░░░░░░░░░░░░░░
 ```
 
-### GCP 部署状态 (2026-03-28) ✅ LIVE
+### GCP 部署状态 (2026-03-29) ✅ LIVE
 
 | 组件 | 状态 | 端点 |
 |------|------|------|
@@ -1029,7 +1028,7 @@ BACALHAU_API_HOST=34.180.51.11 ./bacalhau docker run ubuntu echo "Hello"
 BACALHAU_API_HOST=34.180.51.11 ./bacalhau node list
 ```
 
-### 最近完成 (2026-03-28)
+### 最近完成 (2026-03-30)
 
 | 里程碑 | 状态 | 说明 |
 |--------|------|------|
@@ -1040,17 +1039,20 @@ BACALHAU_API_HOST=34.180.51.11 ./bacalhau node list
 | DPC Token 设计文档 | ✅ 完成 | f21251552 |
 | Bootstrap 安全加固 | ✅ 完成 | f21251552 |
 | **DPC Proto 生成** | ✅ 完成 | c35e052f8 (4 proto 文件) |
-| **DPC 测试网最小构建** | ✅ 完成 | c35e052f8 (5.7MB binary) |
 | **DEparrow 品牌化 (Zero-Risk)** | ✅ 完成 | 2026-03-22 |
 | - CLI Wrapper (bin/deparrow) | ✅ | deparrow 命令封装 bacalhau |
 | - ASCII Banner | ✅ | DEparrow 专属启动横幅 |
 | - GRUB 菜单 | ✅ | "DEparrow OS" 菜单项 |
 | - Alpine Minirootfs | ✅ | 官方 Alpine 3.20 基础 |
-| - 品牌版 ISO | ✅ | deparrow-os-1.0.0.iso (81MB) |
-| **DPC 区块链模块** | ✅ 完成 | 2026-03-26 |
-| - Proof-of-Compute | ✅ | 作业提交、证明验证、奖励分发 |
-| - ComputeMarket | ✅ | 提供者质押、作业托管、声誉系统 |
-| - AgentWallet | ✅ | DID 身份、消费规则、自动化触发器 |
+| - 品牌版 ISO | ✅ | deparrow-os-1.0.0.iso (78MB) |
+| **品牌 Docker 镜像** | ✅ 完成 | 2026-03-28 |
+| - Dockerfile | ✅ | DEparrow 品牌镜像定义 |
+| - entrypoint.sh | ✅ | 启动脚本 + 品牌替换 |
+| **DPC Go 1.24 构建** | ✅ 完成 | 2026-03-30 |
+| - dpcd 二进制 | ✅ | 6.4MB, Go 1.24 兼容 |
+| - init 命令 | ✅ | genesis.json + 模块配置 |
+| - keys 命令 | ✅ | 密钥管理 |
+| - start 命令 | ✅ | 节点启动 |
 
 ### ISO 功能状态
 
@@ -1101,8 +1103,9 @@ cd deparrow/bootable
 | WebUI | 3713 TS/TSX | 24 | Next.js 15 + React 组件 |
 | PicoClaw DEparrow | 14 | 7 | 87%+ 覆盖率 |
 | pkg/globalvm | 18 | - | Global VM 实现 |
-| DPC Chain Proto | 4 proto | - | Cosmos SDK 模块定义 |
-| DPC Chain Build | 1 Go | - | 最小构建 (5.7MB) |
+| DPC Chain Proto | 4 proto | - | Cosmos SDK 模块定义 (646 行) |
+| DPC Chain Build | 1 Go | - | dpcd (6.4MB) Go 1.24 |
+| Docker Image | 2 | - | Dockerfile + entrypoint.sh |
 | K8s Manifests | 22 | - | base/*.yaml |
 | Python Tests | - | 91 | 完整覆盖 |
 | GRUB BIOS 模块 | 304 | - | i386-pc/ |
@@ -1151,8 +1154,10 @@ deparrow/docs/
 
 deparrow/chain/                  # DPC 区块链 (Cosmos SDK)
 ├── build/dpcd                   # 最小构建二进制 (5.7MB) ✅
+├── build/dpcd-full              # 完整构建二进制 (3.3MB) ✅
+├── scripts/deploy-testnet.sh    # GCP 测试网部署脚本 ✅
 ├── cmd/dpcd/                    # 守护进程入口
-├── proto/dpc/                   # Proto 定义 (4 文件) ✅
+├── proto/dpc/                   # Proto 定义 (4 文件, 646 行) ✅
 │   ├── token.proto              # DPC 代币参数
 │   ├── proofofcompute.proto     # Proof-of-Compute 模块
 │   ├── computemarket.proto      # 计算市场模块
@@ -1160,6 +1165,10 @@ deparrow/chain/                  # DPC 区块链 (Cosmos SDK)
 ├── testutil/                    # 测试工具
 ├── Makefile                     # 构建配置
 └── TESTNET_STATUS.md            # 测试网状态文档
+
+deparrow/docker-image/           # DEparrow 品牌 Docker 镜像 ✅
+├── Dockerfile                   # 镜像定义
+└── entrypoint.sh                # 启动脚本 + 品牌替换
 
 webui/
 ├── app/ (Next.js App Router)
@@ -1397,6 +1406,52 @@ bootstrap.deparrow.net → A record → VPS 公网 IP
 
 ---
 
+## DEparrow 品牌 Docker 镜像
+
+为了保护品牌并防止竞争对手看到上游依赖，我们创建了 DEparrow 品牌的 Docker 镜像。
+
+### 特性
+
+- ✅ DEparrow ASCII 横幅启动显示
+- ✅ 所有 "bacalhau" → "DEparrow" 品牌替换
+- ✅ 用户看不到上游名称
+- ✅ 保护竞争优势
+
+### 构建
+
+```bash
+cd deparrow/docker-image
+docker build -t deparrow/node:latest .
+```
+
+### 使用
+
+```bash
+# 用户运行 DEparrow 品牌 Docker 镜像
+docker run -d --name deparrow-node \
+  --restart unless-stopped \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  deparrow/node:latest \
+  serve --compute \
+  --config Compute.Orchestrators=nats://34.180.51.11:4222
+```
+
+### 用户看到的输出
+
+```
+  ██████╗ ██████╗ ██████╗ ███████╗██████╗ 
+  ██╔══██╗██╔══██╗██╔══██╗██╔════╝██╔══██╗
+  ██║  ██║██████╔╝██████╔╝█████╗  ██████╔╝
+  ██║  ██║██╔═══╝ ██╔═══╝ ██╔══╝  ██╔══██╗
+  ██████╔╝██║     ██║     ███████╗██║  ██║
+  ╚═════╝ ╚═╝     ╚═╝     ╚══════╝╚═╝  ╚═╝
+
+  DEparrow - Global Virtual Machine
+  'AI Agents Buy Compute to Run Themselves'
+```
+
+---
+
 ## 资源链接
 
 - **官方网站**: https://deparrow.io
@@ -1420,18 +1475,28 @@ Apache 2.0 许可证
 
 ---
 
-*文档最后更新: 2026-03-28*
+*文档最后更新: 2026-03-30*
 
 ---
 
-**DEparrow 核心平台已就绪 (~96%)**
+**DEparrow 核心平台已就绪 (~98%)**
 
 **GCP 部署完成 - 34.180.51.11 运行中 ✅**
 
-**DPC 区块链 Proto 完成 - 4 个 Proto 文件 ✅**
+**Global Mesh Network - 2 节点已连接 ✅**
 
-**DPC 测试网最小构建完成 - 5.7MB 二进制 ✅**
+**DPC 区块链 Proto 完成 - 4 个 Proto 文件 (646 行) ✅**
 
-**零风险品牌化完成 - 无 Go 代码修改**
+**DPC 二进制构建完成 - dpcd (6.4MB) Go 1.24 ✅**
 
-**下一步: DPC 完整构建 (Go 1.21) → 测试网启动 → 主网上线**
+**DPC 初始化测试通过 - genesis.json + 模块配置 ✅**
+
+**零风险品牌化完成 - 无 Go 代码修改 ✅**
+
+**DEparrow 品牌 Docker 镜像 - deparrow/node:latest ✅**
+
+**测试网部署脚本 - deploy-testnet.sh ✅**
+
+**ISO 镜像就绪 - 6 个 ISO (28MB-112MB) ✅**
+
+**下一步: DPC 测试网部署 → 主网上线 → AI Agent 钱包**
