@@ -4,6 +4,7 @@ go 1.24
 
 require (
 	github.com/cometbft/cometbft v0.38.17
+	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.19.0
 )
@@ -11,6 +12,7 @@ require (
 require (
 	github.com/DataDog/zstd v1.4.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cockroachdb/errors v1.11.3 // indirect
 	github.com/cockroachdb/fifo v0.0.0-20240606204812-0bbfbd93a7ce // indirect

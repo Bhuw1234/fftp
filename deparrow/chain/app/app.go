@@ -5,9 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
+	"os"
+	"path/filepath"
 	"sync"
 
 	abcitypes "github.com/cometbft/cometbft/abci/types"
+	"github.com/dgraph-io/badger/v3"
 )
 
 const (
@@ -20,44 +24,124 @@ const (
 
 // Proof-of-Compute state
 type PoCState struct {
-	mu              sync.RWMutex
-	TotalSupply     string `json:"total_supply"`
-	CurrentHeight   int64  `json:"current_height"`
-	CurrentDifficulty uint64 `json:"current_difficulty"`
-	JobsSubmitted   uint64 `json:"jobs_submitted"`
-	JobsCompleted   uint64 `json:"jobs_completed"`
-	TotalRewards    string `json:"total_rewards"`
-	AppHash        []byte `json:"app_hash"`
+	mu                sync.RWMutex `json:"-"`
+	TotalSupply       string       `json:"total_supply"`
+	CurrentHeight     int64        `json:"current_height"`
+	CurrentDifficulty uint64       `json:"current_difficulty"`
+	JobsSubmitted     uint64       `json:"jobs_submitted"`
+	JobsCompleted     uint64       `json:"jobs_completed"`
+	TotalRewards      string       `json:"total_rewards"`
+	AppHash           []byte       `json:"app_hash"`
 }
 
 // DPCApplication implements the ABCI Application interface
 type DPCApplication struct {
 	abcitypes.BaseApplication
 
+	db         *badger.DB
 	state      *PoCState
 	validators []abcitypes.ValidatorUpdate
 }
 
-// NewDPCApplication creates a new DPC blockchain application
-func NewDPCApplication() *DPCApplication {
-	return &DPCApplication{
+// NewDPCApplication creates a new DPC blockchain application with persistence
+func NewDPCApplication(dbPath string) *DPCApplication {
+	// Ensure database directory exists
+	if err := os.MkdirAll(dbPath, 0755); err != nil {
+		panic(fmt.Errorf("failed to create database directory: %w", err))
+	}
+
+	// Open badger database with silent logger
+	opts := badger.DefaultOptions(dbPath)
+	opts.Logger = nil // Silence badger logs
+
+	db, err := badger.Open(opts)
+	if err != nil {
+		panic(fmt.Errorf("failed to open database: %w", err))
+	}
+
+	app := &DPCApplication{
+		db: db,
 		state: &PoCState{
-			TotalSupply:     InitialSupply,
-			CurrentHeight:   0,
+			TotalSupply:       InitialSupply,
+			CurrentHeight:     0,
 			CurrentDifficulty: 1,
-			JobsSubmitted:   0,
-			JobsCompleted:   0,
-			TotalRewards:    "0",
-			AppHash:        []byte("dpc-genesis"),
+			JobsSubmitted:     0,
+			JobsCompleted:     0,
+			TotalRewards:      "0",
+			AppHash:           []byte("dpc-genesis"),
 		},
 		validators: make([]abcitypes.ValidatorUpdate, 0),
+	}
+
+	// Load existing state from database
+	app.loadState()
+
+	log.Printf("[DPC] Application initialized with persistence at: %s", dbPath)
+	log.Printf("[DPC] Current height: %d, AppHash: %x", app.state.CurrentHeight, app.state.AppHash)
+
+	return app
+}
+
+// Close closes the database connection
+func (app *DPCApplication) Close() error {
+	if app.db != nil {
+		return app.db.Close()
+	}
+	return nil
+}
+
+// saveState persists the current state to database
+func (app *DPCApplication) saveState() {
+	app.state.mu.RLock()
+	defer app.state.mu.RUnlock()
+
+	data, err := json.Marshal(app.state)
+	if err != nil {
+		log.Printf("[DPC] Error marshaling state: %v", err)
+		return
+	}
+
+	err = app.db.Update(func(txn *badger.Txn) error {
+		return txn.Set([]byte("state"), data)
+	})
+	if err != nil {
+		log.Printf("[DPC] Error saving state to database: %v", err)
+	} else {
+		log.Printf("[DPC] State saved: height=%d, hash=%x", app.state.CurrentHeight, app.state.AppHash)
+	}
+}
+
+// loadState loads persisted state from database
+func (app *DPCApplication) loadState() {
+	err := app.db.View(func(txn *badger.Txn) error {
+		item, err := txn.Get([]byte("state"))
+		if err == badger.ErrKeyNotFound {
+			log.Printf("[DPC] No existing state found, using genesis state")
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		return item.Value(func(val []byte) error {
+			return json.Unmarshal(val, app.state)
+		})
+	})
+	if err != nil {
+		log.Printf("[DPC] Error loading state from database: %v", err)
+	} else if app.state.CurrentHeight > 0 {
+		log.Printf("[DPC] State loaded: height=%d, hash=%x", app.state.CurrentHeight, app.state.AppHash)
 	}
 }
 
 // Info returns application info
 func (app *DPCApplication) Info(ctx context.Context, req *abcitypes.RequestInfo) (*abcitypes.ResponseInfo, error) {
+	// Reload state from database to ensure we have latest
+	app.loadState()
+
 	app.state.mu.RLock()
 	defer app.state.mu.RUnlock()
+
+	log.Printf("[DPC] Info request: returning height=%d, hash=%x", app.state.CurrentHeight, app.state.AppHash)
 
 	return &abcitypes.ResponseInfo{
 		Version:          "v1.0.0",
@@ -92,6 +176,8 @@ func (app *DPCApplication) InitChain(ctx context.Context, req *abcitypes.Request
 
 	// Store validators
 	app.validators = req.Validators
+
+	log.Printf("[DPC] Chain initialized: chain_id=%s, validators=%d", ChainID, len(req.Validators))
 
 	return &abcitypes.ResponseInitChain{
 		ConsensusParams: req.ConsensusParams,
@@ -203,20 +289,26 @@ func (app *DPCApplication) FinalizeBlock(ctx context.Context, req *abcitypes.Req
 	// Update app hash
 	app.state.AppHash = []byte(fmt.Sprintf("dpc-block-%d", app.state.CurrentHeight))
 
+	log.Printf("[DPC] FinalizeBlock: height=%d, txs=%d, hash=%x",
+		app.state.CurrentHeight, len(req.Txs), app.state.AppHash)
+
 	return &abcitypes.ResponseFinalizeBlock{
 		TxResults: txs,
 		AppHash:   app.state.AppHash,
 	}, nil
 }
 
-// Commit saves the application state
+// Commit saves the application state to disk
 func (app *DPCApplication) Commit(ctx context.Context, req *abcitypes.RequestCommit) (*abcitypes.ResponseCommit, error) {
 	app.state.mu.RLock()
-	defer app.state.mu.RUnlock()
+	height := app.state.CurrentHeight
+	app.state.mu.RUnlock()
 
-	// Return the height to retain
+	// Persist state to database
+	app.saveState()
+
 	return &abcitypes.ResponseCommit{
-		RetainHeight: app.state.CurrentHeight,
+		RetainHeight: height,
 	}, nil
 }
 
@@ -315,4 +407,9 @@ func (app *DPCApplication) GetState() *PoCState {
 	app.state.mu.RLock()
 	defer app.state.mu.RUnlock()
 	return app.state
+}
+
+// GetDBPath returns the default database path for a given home directory
+func GetDBPath(home string) string {
+	return filepath.Join(home, "data", "app.db")
 }

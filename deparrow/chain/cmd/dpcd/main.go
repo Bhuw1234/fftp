@@ -94,6 +94,7 @@ func initCmd() *cobra.Command {
 				home,
 				home + "/config",
 				home + "/data",
+				home + "/data/app.db",
 				home + "/data/proofofcompute",
 				home + "/data/computemarket",
 				home + "/data/agentwallet",
@@ -337,10 +338,17 @@ func startCmd() *cobra.Command {
 				if cfg.P2P.ListenAddress == "" {
 					cfg.P2P.ListenAddress = "tcp://0.0.0.0:26656"
 				}
+				// Read P2P peer configuration (CRITICAL for networking)
+				cfg.P2P.Seeds = viper.GetString("p2p.seeds")
+				cfg.P2P.PersistentPeers = viper.GetString("p2p.persistent_peers")
+				cfg.P2P.ExternalAddress = viper.GetString("p2p.external_address")
+				cfg.P2P.AddrBookStrict = viper.GetBool("p2p.addr_book_strict")
 			}
 
-			// Create application
-			dpcApp := app.NewDPCApplication()
+			// Create application with persistent storage
+			dbPath := app.GetDBPath(home)
+			dpcApp := app.NewDPCApplication(dbPath)
+			defer dpcApp.Close()
 
 			// Create logger
 			logger := cometlog.NewTMLogger(cometlog.NewSyncWriter(os.Stdout))
