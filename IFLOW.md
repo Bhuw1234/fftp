@@ -107,12 +107,13 @@
 | `deparrow-autojoin.iso` | 94MB | 6阶段自动加入网络 |
 | `deparrow-autojoin-local.iso` | 73MB | 本地测试版 (QEMU) |
 | `deparrow-hybrid.iso` | 107MB | BIOS + EFI 双启动 |
-| `deparrow-os-1.0.0.iso` | 78MB | **DEparrow 品牌版 (推荐)** |
-| **总计** | **~427MB** | 6 个 ISO 文件 |
+| `deparrow-os-1.0.0.iso` | 78MB | DEparrow 品牌版 |
+| `deparrow-decentralized-1.0.0.iso` | 78MB | **🌐 去中心化版 (推荐)** |
+| **总计** | **~505MB** | 7 个 ISO 文件 |
 
 **当前引导服务器:** `34.180.51.11:8080` (GCP 运行中)
 
-**DEparrow 品牌版 ISO 特性 (推荐):**
+**DEparrow 品牌版 ISO 特性:**
 - ✅ 纯 DEparrow 品牌 (无上游名称显示)
 - ✅ `deparrow` CLI 命令
 - ✅ Alpine minirootfs 3.20 基础 (稳定可靠)
@@ -120,7 +121,17 @@
 - ✅ 6阶段自动加入网络
 - ✅ QEMU 本地测试模式 (`--local` 标志)
 
-**Hybrid ISO 特性 (推荐):**
+**🌐 去中心化 ISO 特性 (推荐 - 真正去中心化):**
+- ✅ 连接 DPC 测试网 (34.180.51.11:26657)
+- ✅ 加入全球计算网格 (34.180.51.11:4222)
+- ✅ 完成作业自动赚取 DPC 代币
+- ✅ 自动生成钱包地址
+- ✅ 纯 P2P 网格 - 无中心化权威
+- ✅ AI Agent 自主运行就绪
+- ✅ BIOS + EFI 双启动支持
+- ✅ 7阶段去中心化启动流程
+
+**Hybrid ISO 特性:**
 - ✅ BIOS 传统启动 (GRUB i386-pc 模块)
 - ✅ EFI/UEFI 启动 (GPT 分区)
 - ✅ WiFi 支持 (Intel/Realtek/Atheros/MediaTek)
@@ -1132,7 +1143,7 @@ cd deparrow/bootable
 
 | 组件 | 文件数 | 测试文件 | 说明 |
 |------|--------|----------|------|
-| **Go 文件总数** | **1,252** | 378 | 包含所有模块 |
+| **Go 文件总数** | **1,251** | 378 | 包含所有模块 |
 | pkg/ (核心库) | ~941 | ~288 | Go 核心模块 (40 子目录) |
 | WebUI | 86 TS/TSX | 7 | Next.js 15 + React 组件 |
 | PicoClaw DEparrow | 14 | 7 | 87%+ 覆盖率 |
@@ -1446,109 +1457,12 @@ curl -X POST http://localhost:8000/claim \
 
 ---
 
-## DPC 连接器 (Bacalhau → DPC)
-
-### 概述
-
-DPC 连接器将 Bacalhau 作业完成事件连接到 DPC 区块链奖励系统，实现"完成作业 = 挖矿"的 Proof-of-Compute 机制。
-
-### 文件结构
-
-| 文件 | 行数 | 功能 |
-|------|------|------|
-| `connector.go` | 300 | DPC 区块链 RPC 连接和配置 |
-| `hook.go` | 212 | Bacalhau 作业完成钩子 |
-| `integration.go` | 270 | 奖励系统集成和计算 |
-| **总计** | **782** | 完整连接器实现 |
-
-### 配置示例
-
-```json
-{
-  "enabled": true,
-  "rpc_endpoint": "http://34.180.51.11:26657",
-  "chain_id": "dpc-testnet-1",
-  "node_address": "dpc1...",
-  "minimum_job_duration": 1,
-  "reward_multiplier": 1.0
-}
-```
-
-### 奖励计算
-
-```
-DPC Reward = BaseReward × Complexity × ComputeUnits × Multiplier
-```
-
-**参数说明:**
-- `BaseReward`: 0.001 DPC (基础奖励)
-- `Complexity`: 作业复杂度评分 (1-10)
-- `ComputeUnits`: 计算单元数 (CPU/GPU 时间)
-- `Multiplier`: 奖励乘数 (可调整)
-
-### 使用方式
-
-```bash
-# 启动 Bacalhau 计算节点并连接 DPC
-DPC_ENABLED=true \
-DPC_RPC_ENDPOINT=http://34.180.51.11:26657 \
-DPC_CHAIN_ID=dpc-testnet-1 \
-./bacalhau serve --compute
-```
-
----
-
-## DPC 水龙头 (Faucet)
-
-### 概述
-
-DPC 水龙头为测试网用户提供免费的 DPC 代币，支持 Web UI 界面和 API 请求。
-
-### 文件结构
-
-| 文件 | 行数 | 功能 |
-|------|------|------|
-| `faucet_server.py` | 245 | Python HTTP 服务 + 速率限制 |
-| `index.html` | 273 | Web UI 界面 |
-| **总计** | **518** | 完整水龙头实现 |
-
-### 功能特性
-
-- ✅ 每次请求 1 DPC (可配置)
-- ✅ 每地址 1 小时速率限制
-- ✅ SQLite 数据库记录
-- ✅ Web UI 界面
-- ✅ RESTful API
-
-### 使用方式
-
-```bash
-# 启动水龙头服务
-python3 deparrow/chain/faucet/faucet_server.py --port 8000
-
-# 通过 API 请求代币
-curl -X POST http://localhost:8000/claim \
-  -H "Content-Type: application/json" \
-  -d '{"address": "dpc1..."}'
-```
-
-### 环境变量
-
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `FAUCET_PRIVATE_KEY` | - | 水龙头钱包私钥 |
-| `DPC_RPC_ENDPOINT` | http://localhost:26657 | DPC RPC 地址 |
-| `FAUCET_AMOUNT` | 1000000000000000000 | 每次分发量 (1 DPC) |
-| `RATE_LIMIT_SECONDS` | 3600 | 速率限制 (1小时) |
-
----
-
 ## 基础设施部署指南
 
 ### 当前分支状态
 
 **Git 分支:** `main`
-**最新提交:** 39816616e - feat: Add DPC connector, faucet, security audit and mainnet prep
+**最新提交:** 608b2d650 - docs: Update IFLOW.md with DPC connector, faucet, security audit and mainnet prep
 **待提交文件:** 4 个备份文件 (可选提交)
 
 ### GCP 部署 (已运行)
@@ -1740,7 +1654,7 @@ Apache 2.0 许可证
 
 ---
 
-*文档最后更新: 2026-03-30 (基于最新提交 39816616e)*
+*文档最后更新: 2026-03-30 (基于最新提交 608b2d650)*
 
 ---
 
@@ -1770,6 +1684,6 @@ Apache 2.0 许可证
 
 **ISO 镜像就绪 - 6 个 ISO (总计 ~427MB) ✅**
 
-**代码统计 - 1,252 Go 文件 + 378 测试文件 ✅**
+**代码统计 - 1,251 Go 文件 + 378 测试文件 ✅**
 
 **下一步: 主网上线 → AI Agent 钱包 → Mobile App**
