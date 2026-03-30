@@ -14,6 +14,7 @@ import (
 	"github.com/bacalhau-project/bacalhau/pkg/compute"
 	"github.com/bacalhau-project/bacalhau/pkg/compute/capacity"
 	"github.com/bacalhau-project/bacalhau/pkg/compute/capacity/disk"
+	"github.com/bacalhau-project/bacalhau/pkg/compute/dpc"
 	"github.com/bacalhau-project/bacalhau/pkg/compute/env"
 	"github.com/bacalhau-project/bacalhau/pkg/compute/logstream"
 	"github.com/bacalhau-project/bacalhau/pkg/compute/sensors"
@@ -45,6 +46,7 @@ type Compute struct {
 	Publishers         publisher.PublisherProvider
 	Bidder             compute.Bidder
 	Watchers           watcher.Manager
+	DPC                *dpc.WatcherHandler // DPC reward handler
 	cleanupFunc        func(ctx context.Context)
 	debugInfoProviders []models.DebugInfoProvider
 }
@@ -258,13 +260,50 @@ func NewComputeNode(
 	}
 
 	watcherRegistry, err := setupComputeWatchers(
-		ctx, executionStore, bufferRunner, bidder)
+		ctx, executionStore, bufferRunner, bidder, cfg)
 	if err != nil {
 		return nil, err
 	}
 
+	// Setup DPC reward handler if enabled
+	var dpcHandler *dpc.WatcherHandler
+	if cfg.BacalhauConfig.Compute.DPC.Enabled {
+		dpcCfg := dpc.Config{
+			Enabled:            cfg.BacalhauConfig.Compute.DPC.Enabled,
+			RPCEndpoint:        cfg.BacalhauConfig.Compute.DPC.RPCEndpoint,
+			ChainID:            cfg.BacalhauConfig.Compute.DPC.ChainID,
+			NodeAddress:        cfg.BacalhauConfig.Compute.DPC.NodeAddress,
+			MinimumJobDuration: cfg.BacalhauConfig.Compute.DPC.MinimumJobDuration,
+			RewardMultiplier:   cfg.BacalhauConfig.Compute.DPC.RewardMultiplier,
+		}
+		dpcHandler = dpc.NewWatcherHandler(dpcCfg)
+		dpcHandler.Start(ctx)
+
+		// Register DPC handler with the watcher
+		_, err = watcherRegistry.Create(ctx, "dpc-rewards",
+			watcher.WithHandler(dpcHandler),
+			watcher.WithAutoStart(),
+			watcher.WithFilter(watcher.EventFilter{
+				ObjectTypes: []string{compute.EventObjectExecutionUpsert},
+			}),
+			watcher.WithRetryStrategy(watcher.RetryStrategySkip),
+			watcher.WithMaxRetries(3),
+			watcher.WithInitialEventIterator(watcher.LatestIterator()))
+		if err != nil {
+			return nil, fmt.Errorf("failed to setup DPC watcher: %w", err)
+		}
+
+		log.Ctx(ctx).Info().
+			Str("rpc", dpcCfg.RPCEndpoint).
+			Str("node", dpcCfg.NodeAddress).
+			Msg("DPC rewards enabled")
+	}
+
 	// A single Cleanup function to make sure the order of closing dependencies is correct
 	cleanupFunc := func(ctx context.Context) {
+		if dpcHandler != nil {
+			dpcHandler.Stop()
+		}
 		if err = watcherRegistry.Stop(ctx); err != nil {
 			log.Error().Err(err).Msg("failed to stop watcher registry")
 		}
@@ -291,6 +330,7 @@ func NewComputeNode(
 		Publishers:         publishers,
 		Bidder:             bidder,
 		Watchers:           watcherRegistry,
+		DPC:                dpcHandler,
 		cleanupFunc:        cleanupFunc,
 		debugInfoProviders: debugInfoProviders,
 	}, nil
@@ -378,6 +418,7 @@ func setupComputeWatchers(
 	executionStore store.ExecutionStore,
 	bufferRunner *compute.ExecutorBuffer,
 	bidder compute.Bidder,
+	cfg NodeConfig,
 ) (watcher.Manager, error) {
 	watcherRegistry := watcher.NewManager(executionStore.GetEventStore())
 

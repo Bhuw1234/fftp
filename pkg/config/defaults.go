@@ -62,6 +62,14 @@ var Default = types.Bacalhau{
 			Disk:   "80%",
 			GPU:    "100%",
 		},
+		DPC: types.DPCConfig{
+			Enabled:            false,
+			RPCEndpoint:        "http://34.180.51.11:26657",
+			ChainID:            "dpc-testnet-1",
+			NodeAddress:        "",
+			MinimumJobDuration: 1,
+			RewardMultiplier:   1.0,
+		},
 	},
 	JobDefaults: types.JobDefaults{
 		Batch: types.BatchJobDefaultsConfig{

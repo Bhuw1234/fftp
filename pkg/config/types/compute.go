@@ -17,6 +17,8 @@ type Compute struct {
 	TLS ComputeTLS `yaml:"TLS,omitempty" json:"TLS,omitempty"`
 	// Env specifies environment variable configuration for the compute node
 	Env EnvConfig `yaml:"Env,omitempty" json:"Env,omitempty"`
+	// DPC specifies the DPC (DEparrow Coin) reward configuration for the compute node
+	DPC DPCConfig `yaml:"DPC,omitempty" json:"DPC,omitempty"`
 }
 
 type ComputeAuth struct {
@@ -57,4 +59,21 @@ type NetworkConfig struct {
 	PortRangeStart int `yaml:"PortRangeStart,omitempty" json:"PortRangeStart,omitempty"`
 	// PortRangeEnd is the last port in the range (inclusive) that can be allocated to jobs
 	PortRangeEnd int `yaml:"PortRangeEnd,omitempty" json:"PortRangeEnd,omitempty"`
+}
+
+// DPCConfig specifies the DPC (DEparrow Coin) reward configuration
+// When enabled, completed jobs automatically earn DPC tokens
+type DPCConfig struct {
+	// Enabled determines if DPC rewards are enabled for this compute node
+	Enabled bool `yaml:"Enabled,omitempty" json:"Enabled,omitempty"`
+	// RPCEndpoint is the DPC blockchain RPC endpoint (e.g., http://34.180.51.11:26657)
+	RPCEndpoint string `yaml:"RPCEndpoint,omitempty" json:"RPCEndpoint,omitempty"`
+	// ChainID is the DPC chain ID (e.g., dpc-testnet-1)
+	ChainID string `yaml:"ChainID,omitempty" json:"ChainID,omitempty"`
+	// NodeAddress is the compute node's wallet address for receiving DPC rewards
+	NodeAddress string `yaml:"NodeAddress,omitempty" json:"NodeAddress,omitempty"`
+	// MinimumJobDuration is the minimum job duration in seconds to earn rewards
+	MinimumJobDuration int64 `yaml:"MinimumJobDuration,omitempty" json:"MinimumJobDuration,omitempty"`
+	// RewardMultiplier allows adjusting rewards (default 1.0)
+	RewardMultiplier float64 `yaml:"RewardMultiplier,omitempty" json:"RewardMultiplier,omitempty"`
 }
