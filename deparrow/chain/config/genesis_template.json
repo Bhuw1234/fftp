@@ -1,0 +1,168 @@
+{
+  "genesis_time": "2026-04-15T00:00:00Z",
+  "chain_id": "dpc-mainnet-1",
+  "initial_height": "1",
+  "consensus_params": {
+    "block": {
+      "max_bytes": "22020096",
+      "max_gas": "-1",
+      "time_iota_ms": "1000"
+    },
+    "evidence": {
+      "max_age_num_blocks": "100000",
+      "max_age_duration": "172800000000000",
+      "max_bytes": "1048576"
+    },
+    "validator": {
+      "pub_key_types": ["ed25519"]
+    },
+    "version": {}
+  },
+  "app_hash": "",
+  "app_state": {
+    "auth": {
+      "params": {
+        "max_memo_characters": "256",
+        "tx_sig_limit": "7",
+        "tx_size_cost_per_byte": "10",
+        "sig_verify_cost_ed25519": "590",
+        "sig_verify_cost_secp256k1": "1000"
+      },
+      "accounts": []
+    },
+    "bank": {
+      "params": {
+        "send_enabled": [],
+        "default_send_enabled": true
+      },
+      "balances": [],
+      "supply": [],
+      "denom_metadata": [
+        {
+          "description": "DEparrow Coin - The native token for AI agents",
+          "denom_units": [
+            {"denom": "dpc", "exponent": 0},
+            {"denom": "DPC", "exponent": 18}
+          ],
+          "base": "dpc",
+          "display": "DPC",
+          "name": "DEparrow Coin",
+          "symbol": "DPC"
+        }
+      ]
+    },
+    "staking": {
+      "params": {
+        "unbonding_time": "1814400s",
+        "max_validators": 100,
+        "max_entries": 7,
+        "historical_entries": 10000,
+        "bond_denom": "dpc"
+      },
+      "last_total_power": "0",
+      "last_validator_powers": [],
+      "validators": [],
+      "delegations": [],
+      "unbonding_delegations": [],
+      "redelegations": [],
+      "exported": false
+    },
+    "distribution": {
+      "params": {
+        "community_tax": "0.020000000000000000",
+        "base_proposer_reward": "0.010000000000000000",
+        "bonus_proposer_reward": "0.040000000000000000",
+        "withdraw_addr_enabled": true
+      },
+      "fee_pool": {"community_pool": []},
+      "delegator_withdraw_infos": [],
+      "previous_proposer": "",
+      "outstanding_rewards": [],
+      "outstanding_validators": [],
+      "all_validators": [],
+      "delegator_starting_infos": [],
+      "validator_accumulated_commissions": [],
+      "validator_historical_rewards": [],
+      "validator_current_rewards": [],
+      "delegator_withdraw_address": []
+    },
+    "slashing": {
+      "params": {
+        "signed_blocks_window": "100",
+        "min_signed_per_window": "0.500000000000000000",
+        "downtime_jail_duration": "600s",
+        "slash_fraction_double_sign": "0.050000000000000000",
+        "slash_fraction_downtime": "0.010000000000000000"
+      },
+      "signing_infos": [],
+      "missed_blocks": [],
+      "slash_acks": []
+    },
+    "gov": {
+      "starting_proposal_id": "1",
+      "deposits": [],
+      "votes": [],
+      "proposals": [],
+      "deposit_params": {
+        "min_deposit": [{"denom": "dpc", "amount": "1000000000000000000000"}],
+        "max_deposit_period": "1209600s"
+      },
+      "voting_params": {"voting_period": "1209600s"},
+      "tally_params": {
+        "quorum": "0.334000000000000000",
+        "threshold": "0.500000000000000000",
+        "veto_threshold": "0.334000000000000000"
+      }
+    },
+    "mint": {
+      "minter": {
+        "inflation": "0.000000000000000000",
+        "annual_provisions": "0.000000000000000000"
+      },
+      "params": {
+        "mint_denom": "dpc",
+        "inflation_rate_change": "0.000000000000000000",
+        "inflation_max": "0.000000000000000000",
+        "inflation_min": "0.000000000000000000",
+        "goal_bonded": "0.670000000000000000",
+        "blocks_per_year": "6311520"
+      }
+    },
+    "params": null,
+    "proofofcompute": {
+      "params": {
+        "min_compute_units": "1",
+        "reward_per_unit": "1000000000000000",
+        "max_supply": "21000000000000000000000000000",
+        "complexity_multiplier": 5,
+        "min_stake": "1000000000000000000",
+        "difficulty_adjustment": 100
+      },
+      "jobs": [],
+      "proofs": [],
+      "pending_rewards": [],
+      "total_supply": "1000000000000000000000000000",
+      "difficulty": 1
+    },
+    "computemarket": {
+      "params": {
+        "min_provider_stake": "1000000000000000000000",
+        "escrow_period": "86400s",
+        "max_dispute_period": "604800s",
+        "provider_slash_percent": "10"
+      },
+      "providers": [],
+      "escrows": [],
+      "reputations": []
+    },
+    "agentwallet": {
+      "params": {
+        "max_automation_triggers": 10,
+        "max_spending_rules": 20
+      },
+      "identities": [],
+      "spending_rules": [],
+      "automation_triggers": []
+    }
+  }
+}

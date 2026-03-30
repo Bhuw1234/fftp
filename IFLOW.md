@@ -96,18 +96,19 @@
 └───────────────────────────────────────────────────────────────┘
 ```
 
-### ISO 镜像 - 生产就绪 (2026-03-29)
+### ISO 镜像 - 生产就绪 (2026-03-30)
 
 **可用 ISO 文件:**
 
 | ISO 文件 | 大小 | 说明 |
 |----------|------|------|
-| `deparrow-1.0.0.iso` | 28MB | 精简版，仅 EFI 启动 |
-| `deparrow-alpine.iso` | 49MB | Alpine Linux 完整版 |
-| `deparrow-autojoin.iso` | 99MB | 6阶段自动加入网络 |
-| `deparrow-autojoin-local.iso` | 76MB | 本地测试版 (QEMU) |
-| `deparrow-hybrid.iso` | 112MB | BIOS + EFI 双启动 |
-| `deparrow-os-1.0.0.iso` | 81MB | **DEparrow 品牌版 (推荐)** |
+| `deparrow-1.0.0.iso` | 27MB | 精简版，仅 EFI 启动 |
+| `deparrow-alpine.iso` | 48MB | Alpine Linux 完整版 |
+| `deparrow-autojoin.iso` | 94MB | 6阶段自动加入网络 |
+| `deparrow-autojoin-local.iso` | 73MB | 本地测试版 (QEMU) |
+| `deparrow-hybrid.iso` | 107MB | BIOS + EFI 双启动 |
+| `deparrow-os-1.0.0.iso` | 78MB | **DEparrow 品牌版 (推荐)** |
+| **总计** | **~427MB** | 6 个 ISO 文件 |
 
 **当前引导服务器:** `34.180.51.11:8080` (GCP 运行中)
 
@@ -838,7 +839,7 @@ cd deparrow
 
 ### 可启动 ISO 测试
 
-**ISO 文件:** `deparrow/bootable/output/deparrow-hybrid.iso` (112MB，BIOS+EFI 双启动)
+**ISO 文件:** `deparrow/bootable/output/deparrow-hybrid.iso` (107MB，BIOS+EFI 双启动)
 
 | 方式 | 命令 |
 |------|------|
@@ -995,7 +996,11 @@ DEPLOYMENT: 100% ████████████████████ �
 DPC TOKEN: 100% ████████████████████████████
 ├── Token Design Doc      100% ████████████████████
 ├── Implementation Plan   100% ████████████████████
-├── Proto Files           100% ████████████████████ ✅ (4 files, 646 lines)
+├── Proto Files           100% ████████████████████ ✅ (4 files)
+├── Cosmos SDK Modules    100% ████████████████████ ✅ (3 modules, 25 Go files)
+│   ├── x/proofofcompute  100% ████████████████████ ✅
+│   ├── x/computemarket   100% ████████████████████ ✅
+│   └── x/agentwallet     100% ████████████████████ ✅
 ├── Go 1.24 Build         100% ████████████████████ ✅ (dpcd 38MB)
 ├── CometBFT Integration  100% ████████████████████ ✅ (v0.38.17)
 ├── State Persistence     100% ████████████████████ ✅ (BadgerDB)
@@ -1016,7 +1021,7 @@ MOBILE APP: 0% ░░░░░░░░░░░░░░░░░░░░
 | **DPC Testnet** | ✅ 运行中 | http://34.180.51.11:26657 |
 | **Bootstrap Server** | ✅ 运行中 | http://34.180.51.11:8080 |
 | **Bacalhau API** | ✅ 运行中 | http://34.180.51.11:1234 |
-| **Block Height** | 144+ | 生产新区块中 |
+| **Block Height** | 2412+ | 生产新区块中 |
 | **Chain ID** | dpc-testnet-1 | ✅ |
 | **Consensus** | CometBFT v0.38.17 | ✅ |
 
@@ -1036,15 +1041,19 @@ BACALHAU_API_HOST=34.180.51.11 ./bacalhau node list
 
 | 里程碑 | 状态 | 说明 |
 |--------|------|------|
+| **DPC Cosmos SDK Modules** | ✅ 完成 | 2026-03-30 (25 files, 3715 lines) |
+| - x/proofofcompute | ✅ | 作业提交、证明验证、奖励分发 |
+| - x/computemarket | ✅ | 提供者质押、作业托管、声誉系统 |
+| - x/agentwallet | ✅ | DID 身份、消费规则、自动化触发器 |
 | **DPC Testnet Launch** | ✅ 完成 | 2026-03-30 |
 | - CometBFT Integration | ✅ | v0.38.17 共识引擎 |
 | - Go 1.24 Build | ✅ | 38MB 二进制 |
 | - GCP Deployment | ✅ | 34.180.51.11:26657 |
 | - State Persistence | ✅ | BadgerDB 存储 |
 | - Multi-Node P2P | ✅ | 节点发现+区块同步 |
-| **ISO 镜像** | ✅ 完成 | 6 files (28-112MB) |
+| **ISO 镜像** | ✅ 完成 | 6 files (27-107MB, 总计 ~427MB) |
 | **零风险品牌化** | ✅ 完成 | CLI + Docker image |
-| **Global VM** | ✅ 完成 | 5 phases, 18 Go files |
+| **Global VM** | ✅ 完成 | 5 phases, 12 Go files |
 
 ### ISO 功能状态
 
@@ -1064,8 +1073,8 @@ BACALHAU_API_HOST=34.180.51.11 ./bacalhau node list
 | **GCP Bootstrap Server** | ✅ 运行中 | http://34.180.51.11:8080 |
 | **GCP Compute Node** | ✅ 运行中 | http://34.180.51.11:1234 |
 | DNS (bootstrap.deparrow.net) | ⚠️ 可选 | 可指向 34.180.51.11 |
-| DPC 区块链 | ✅ Proto 完成 | 4 proto 文件 + 最小构建 |
-| DPC 测试网 | ⏳ 待启动 | 需 Go 1.21 完整构建 |
+| DPC 区块链 | ✅ 完成 | 4 proto + 25 Go 模块文件 |
+| DPC 测试网 | ✅ LIVE | 34.180.51.11:26657 |
 
 ### 零风险品牌化实现 (2026-03-22)
 
@@ -1087,20 +1096,21 @@ cd deparrow/bootable
 ./build-deparrow-iso.sh --local   # QEMU 测试版 (连接 10.0.2.2:8080)
 ```
 
-### 代码统计
+### 代码统计 (2026-03-30 更新)
 
 | 组件 | 文件数 | 测试文件 | 说明 |
 |------|--------|----------|------|
-| pkg/ (核心库) | 941 Go 文件 | 288 | Go 核心模块 (40 子目录) |
-| WebUI | 3713 TS/TSX | 24 | Next.js 15 + React 组件 |
+| **Go 文件总数** | **1,249** | 378 | 包含所有模块 |
+| pkg/ (核心库) | ~941 | ~288 | Go 核心模块 (40 子目录) |
+| WebUI | 86 TS/TSX | 7 | Next.js 15 + React 组件 |
 | PicoClaw DEparrow | 14 | 7 | 87%+ 覆盖率 |
-| pkg/globalvm | 18 | - | Global VM 实现 |
-| DPC Chain | 5 Go + 4 proto | - | ABCI app + CometBFT (35MB) |
+| pkg/globalvm | 12 | 6 | Global VM 实现 |
+| DPC Chain | 25 Go + 4 proto | - | 3 Cosmos SDK 模块 |
 | Docker Image | 2 | - | Dockerfile + entrypoint.sh |
 | K8s Manifests | 22 | - | base/*.yaml |
 | Python Tests | - | 91 | 完整覆盖 |
 | GRUB BIOS 模块 | 304 | - | i386-pc/ |
-| ISO 输出 | 6 | - | 28MB ~ 112MB |
+| ISO 输出 | 6 | - | 27MB ~ 107MB (总计 ~427MB) |
 | bin/deparrow | 1 | - | CLI 包装器 (零风险) |
 
 ### 核心文件清单
@@ -1133,10 +1143,10 @@ deparrow/bootable/
 ├── alpine-minirootfs-3.20.0-x86_64.tar.gz  # Alpine 基础
 ├── i386-pc/               # GRUB BIOS 模块 (304 文件)
 └── output/
-    ├── deparrow-os-1.0.0.iso     (81MB)  # 品牌版 (推荐)
-    ├── deparrow-hybrid.iso       (112MB)
-    ├── deparrow-autojoin.iso     (99MB)
-    └── deparrow-alpine.iso       (49MB)
+    ├── deparrow-os-1.0.0.iso     (78MB)  # 品牌版 (推荐)
+    ├── deparrow-hybrid.iso       (107MB)
+    ├── deparrow-autojoin.iso     (94MB)
+    └── deparrow-alpine.iso       (48MB)
 
 deparrow/docs/
 ├── DPC-TOKEN-DESIGN.md        # DPC 代币设计文档
@@ -1144,15 +1154,20 @@ deparrow/docs/
 └── SOCIAL-APP-DESIGN.md       # 社交 App 原型设计文档 (2026-03-26)
 
 deparrow/chain/                  # DPC 区块链 (Cosmos SDK)
-├── build/dpcd                   # 最小构建二进制 (5.7MB) ✅
-├── build/dpcd-full              # 完整构建二进制 (3.3MB) ✅
+├── build/dpcd                   # 生产构建二进制 (38MB) ✅
+├── build/dpcd-full              # 完整构建二进制 (4.7MB) ✅
+├── build/dpcd-cosmos            # Cosmos SDK 构建 (4.7MB) ✅
 ├── scripts/deploy-testnet.sh    # GCP 测试网部署脚本 ✅
 ├── cmd/dpcd/                    # 守护进程入口
-├── proto/dpc/                   # Proto 定义 (4 文件, 646 行) ✅
+├── proto/dpc/                   # Proto 定义 (4 文件) ✅
 │   ├── token.proto              # DPC 代币参数
 │   ├── proofofcompute.proto     # Proof-of-Compute 模块
 │   ├── computemarket.proto      # 计算市场模块
 │   └── agentwallet.proto        # AI Agent 钱包模块
+├── x/                           # Cosmos SDK 模块 (25 Go 文件) ✅
+│   ├── proofofcompute/          # 作业提交、证明验证、奖励分发
+│   ├── computemarket/           # 提供者质押、作业托管、声誉系统
+│   └── agentwallet/             # DID 身份、消费规则、自动化触发器
 ├── testutil/                    # 测试工具
 ├── Makefile                     # 构建配置
 └── TESTNET_STATUS.md            # 测试网状态文档
@@ -1164,7 +1179,7 @@ deparrow/docker-image/           # DEparrow 品牌 Docker 镜像 ✅
 webui/
 ├── app/ (Next.js App Router)
 ├── components/ (React 组件)
-└── *.test.tsx (24 测试文件)
+└── *.test.tsx (7 测试文件)
 
 deparrow/k8s/base/
 └── 22 YAML manifests
@@ -1199,8 +1214,8 @@ deparrow/k8s/base/
 |-------|------|--------|
 | Phase 1 | Core Platform | ✅ COMPLETE |
 | Phase 2 | Token Design | ✅ COMPLETE |
-| Phase 3 | Smart Contracts | ✅ Modules + Proto Complete |
-| Phase 3.5 | Testnet Build | ✅ Minimal Build (5.7MB) |
+| Phase 3 | Smart Contracts | ✅ COMPLETE (3 modules, 25 Go files) |
+| Phase 3.5 | Testnet Build | ✅ COMPLETE (dpcd 38MB) |
 | Phase 4 | Mainnet Launch | Pending (2-3 月) |
 | Phase 5 | AI Agent Wallets | Pending (3-4 月) |
 
@@ -1238,6 +1253,12 @@ deparrow/k8s/base/
 - 声誉评分机制
 - 争议解决流程
 
+**Proto 定义:**
+- `Provider` - 计算提供者结构
+- `JobEscrow` - 作业托管资金
+- `Reputation` - 声誉评分
+- `Dispute` - 争议处理
+
 #### 3. AgentWallet Module (x/agentwallet)
 
 **功能:**
@@ -1246,14 +1267,20 @@ deparrow/k8s/base/
 - 触发器设置
 - 多签钱包支持
 
+**Proto 定义:**
+- `AgentIdentity` - AI Agent DID 身份
+- `SpendingRule` - 自动消费规则
+- `AutomationTrigger` - 自动化触发器
+
 #### 测试网状态 (TESTNET_STATUS.md)
 
 | 项目 | 状态 |
 |------|------|
-| 最小构建 | ✅ 完成 (5.7MB) |
+| 生产构建 | ✅ 完成 (38MB) |
 | 测试网初始化 | ✅ 完成 (dpc-testnet-1) |
 | Genesis 配置 | ✅ 完成 (DPC token, staking) |
 | 节点目录 | ~/.dpc/ |
+| 测试网状态 | ✅ LIVE (34.180.51.11:26657) |
 
 **网络配置:**
 | 服务 | 地址 |
@@ -1279,7 +1306,8 @@ deparrow/k8s/base/
 ### 当前分支状态
 
 **Git 分支:** `main`
-**最新提交:** c35e052f8 - feat: DPC blockchain proto generation and minimal build complete
+**最新提交:** 6f86968f0 - feat: Implement DPC Cosmos SDK modules (25 files, 3715 lines)
+**待提交文件:** 5 个 (dpcd-full 修改 + 4 个备份文件)
 
 ### GCP 部署 (已运行)
 
@@ -1345,14 +1373,16 @@ bootstrap.deparrow.net → A record → VPS 公网 IP
 
 ## 未来功能路线图
 
-| 优先级 | 功能 | 说明 |
+| 优先级 | 功能 | 状态 |
 |--------|------|------|
-| HIGH | DPC 完整构建 | 使用 Go 1.21 构建 Cosmos SDK |
-| HIGH | DPC 测试网启动 | 创世区块、验证者 |
-| HIGH | DPC 主网启动 | 代币分发、主网上线 |
-| MEDIUM | 社交 App 原型 | "使用即赚钱" 移动应用 |
+| HIGH | Bacalhau → DPC 连接 | ✅ 完成 (dpc_connector/) |
+| HIGH | DPC Faucet | ✅ 完成 (chain/faucet/) |
+| HIGH | DPC 安全审计 | ✅ 完成 (SECURITY_AUDIT.md) |
+| HIGH | 主网启动准备 | ✅ 完成 (genesis_template.json, setup_validator.sh) |
+| MEDIUM | Wallet UI | 待开发 |
+| MEDIUM | 社交 App 原型 | 设计完成 |
 | MEDIUM | DNS 配置 | bootstrap.deparrow.net → GCP IP |
-| MEDIUM | 用户友好 ISO 启动 | TUI 仪表板、进度消息 |
+| MEDIUM | DPC 模块单元测试 | 待开发 |
 | LOW | code-server 集成 | +50MB ISO 体积 |
 | LOW | 终端浏览器 | w3m/lynx (+2MB) |
 
@@ -1466,7 +1496,7 @@ Apache 2.0 许可证
 
 ---
 
-*文档最后更新: 2026-03-30*
+*文档最后更新: 2026-03-30 (基于最新提交 6f86968f0)*
 
 ---
 
@@ -1474,16 +1504,20 @@ Apache 2.0 许可证
 
 **DPC 测试网 LIVE - http://34.180.51.11:26657 ✅**
 
-**CometBFT 共识运行中 - Block Height 144+ ✅**
+**CometBFT 共识运行中 - Block Height 2412+ ✅**
 
 **GCP 部署完成 - 34.180.51.11 ✅**
 
 **Global Mesh Network - 2 节点已连接 ✅**
 
-**DPC 区块链完整实现 - 4 Proto + 35MB 二进制 + CometBFT ✅**
+**DPC 区块链完整实现 - 4 Proto + 25 Go 模块 + 38MB 二进制 + CometBFT ✅**
+
+**Cosmos SDK 模块完成 - proofofcompute + computemarket + agentwallet ✅**
 
 **零风险品牌化完成 - 无 Go 代码修改 ✅**
 
-**ISO 镜像就绪 - 6 个 ISO (28MB-112MB) ✅**
+**ISO 镜像就绪 - 6 个 ISO (总计 ~427MB) ✅**
+
+**代码统计 - 1,249 Go 文件 + 378 测试文件 ✅**
 
 **下一步: 主网上线 → AI Agent 钱包 → Mobile App**

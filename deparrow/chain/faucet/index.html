@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DPC Faucet - DEparrow Testnet</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+        }
+        .container {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        .logo {
+            font-size: 2.5em;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #00d9ff, #00ff88);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle {
+            text-align: center;
+            color: #aaa;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #00d9ff;
+        }
+        input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 10px;
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        input:focus {
+            outline: none;
+            border-color: #00d9ff;
+        }
+        input::placeholder { color: #666; }
+        button {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(90deg, #00d9ff, #00ff88);
+            color: #1a1a2e;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0,217,255,0.4);
+        }
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .info {
+            background: rgba(0,217,255,0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+        }
+        .info-value { color: #00ff88; font-weight: bold; }
+        .message {
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+        }
+        .success {
+            background: rgba(0,255,136,0.2);
+            border: 1px solid #00ff88;
+            color: #00ff88;
+        }
+        .error {
+            background: rgba(255,68,68,0.2);
+            border: 1px solid #ff4444;
+            color: #ff4444;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .links {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .links a {
+            color: #00d9ff;
+            text-decoration: none;
+            margin: 0 10px;
+        }
+        .links a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">DPC Faucet</div>
+        <div class="subtitle">DEparrow Testnet Token Distribution</div>
+        
+        <div class="info">
+            <div class="info-item">
+                <span>Network:</span>
+                <span class="info-value">dpc-testnet-1</span>
+            </div>
+            <div class="info-item">
+                <span>Amount per Request:</span>
+                <span class="info-value" id="faucetAmount">1 DPC</span>
+            </div>
+            <div class="info-item">
+                <span>Rate Limit:</span>
+                <span class="info-value" id="rateLimit">1 hour</span>
+            </div>
+        </div>
+
+        <form id="faucetForm">
+            <div class="form-group">
+                <label for="address">Your DPC Address</label>
+                <input 
+                    type="text" 
+                    id="address" 
+                    placeholder="dpc1..." 
+                    required
+                    pattern="^dpc1[a-z0-9]{38,}$"
+                    title="Please enter a valid DPC address starting with 'dpc1'"
+                >
+            </div>
+            <button type="submit" id="submitBtn">Get DPC Tokens</button>
+        </form>
+
+        <div id="message" class="message"></div>
+
+        <div class="links">
+            <a href="https://docs.deparrow.io" target="_blank">Docs</a>
+            <a href="https://github.com/Bhuw1234/fftp" target="_blank">GitHub</a>
+            <a href="http://34.180.51.11:26657" target="_blank">Explorer</a>
+        </div>
+    </div>
+
+    <script>
+        const FAUCET_API = window.location.origin;
+        
+        // Load faucet status
+        async function loadStatus() {
+            try {
+                const resp = await fetch(`${FAUCET_API}/status`);
+                const data = await resp.json();
+                document.getElementById('faucetAmount').textContent = 
+                    `${parseInt(data.faucet_amount) / 1e18} DPC`;
+            } catch (e) {
+                console.log('Could not load status');
+            }
+        }
+
+        // Check rate limit
+        async function checkRateLimit(address) {
+            try {
+                const resp = await fetch(`${FAUCET_API}/check?address=${address}`);
+                return await resp.json();
+            } catch (e) {
+                return { can_request: true };
+            }
+        }
+
+        // Submit request
+        async function requestTokens(address) {
+            const resp = await fetch(`${FAUCET_API}/request`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ address })
+            });
+            return await resp.json();
+        }
+
+        // Show message
+        function showMessage(text, isError = false) {
+            const msg = document.getElementById('message');
+            msg.textContent = text;
+            msg.className = `message ${isError ? 'error' : 'success'}`;
+            msg.style.display = 'block';
+        }
+
+        // Form submit handler
+        document.getElementById('faucetForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const address = document.getElementById('address').value.trim();
+            const btn = document.getElementById('submitBtn');
+            const msg = document.getElementById('message');
+            
+            // Validate
+            if (!address.startsWith('dpc1')) {
+                showMessage('Invalid address. Must start with "dpc1"', true);
+                return;
+            }
+
+            // Check rate limit
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> Checking...';
+            
+            const rateCheck = await checkRateLimit(address);
+            if (!rateCheck.can_request) {
+                const mins = Math.ceil(rateCheck.seconds_remaining / 60);
+                showMessage(`Rate limited. Try again in ${mins} minutes.`, true);
+                btn.disabled = false;
+                btn.textContent = 'Get DPC Tokens';
+                return;
+            }
+
+            // Request tokens
+            btn.innerHTML = '<span class="loading"></span> Sending...';
+            
+            try {
+                const result = await requestTokens(address);
+                
+                if (result.error) {
+                    showMessage(result.error + (result.seconds_remaining ? 
+                        ` (wait ${Math.ceil(result.seconds_remaining/60)} min)` : ''), true);
+                } else {
+                    showMessage(`Success! ${parseInt(result.amount)/1e18} DPC sent to ${address}\nTX: ${result.tx_hash}`);
+                }
+            } catch (e) {
+                showMessage('Request failed. Please try again.', true);
+            }
+
+            btn.disabled = false;
+            btn.textContent = 'Get DPC Tokens';
+        });
+
+        // Load status on page load
+        loadStatus();
+    </script>
+</body>
+</html>

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strconv"
+	"strings"
 
 	"github.com/deparrow/dpc/x/proofofcompute/types"
 )
@@ -62,8 +64,22 @@ type MsgClaimRewardResponse struct {
 	Amount string `json:"amount"`
 }
 
-// SubmitJob handles job submission
+// SubmitJob handles job submission with input validation
 func (k Keeper) SubmitJob(msg MsgSubmitJob, blockHeight int64) (*MsgSubmitJobResponse, error) {
+	// SECURITY: Input validation
+	if msg.Submitter == "" {
+		return nil, fmt.Errorf("submitter cannot be empty")
+	}
+	if !isValidAddress(msg.Submitter) {
+		return nil, fmt.Errorf("invalid submitter address format")
+	}
+	if len(msg.JobSpec) == 0 {
+		return nil, fmt.Errorf("job_spec cannot be empty")
+	}
+	if msg.ComputeUnits < 1 {
+		return nil, fmt.Errorf("compute_units must be at least 1")
+	}
+
 	// Validate compute units
 	params := k.GetParams()
 	if msg.ComputeUnits < params.MinComputeUnits {
@@ -101,8 +117,45 @@ func (k Keeper) SubmitJob(msg MsgSubmitJob, blockHeight int64) (*MsgSubmitJobRes
 	}, nil
 }
 
-// SubmitProof handles proof submission
+// MaxComputeUnits is the maximum allowed compute units per job
+const MaxComputeUnits = 1000000000 // 1 billion
+
+// reentrancyGuard tracks addresses currently claiming rewards
+var reentrancyGuard = make(map[string]bool)
+
+// SubmitProof handles proof submission with security checks
 func (k Keeper) SubmitProof(msg MsgSubmitProof, blockHeight int64) (*MsgSubmitProofResponse, error) {
+	// SECURITY: Input validation
+	if msg.JobID == "" {
+		return nil, fmt.Errorf("job_id cannot be empty")
+	}
+	if msg.NodeAddress == "" {
+		return nil, fmt.Errorf("node_address cannot be empty")
+	}
+	if !isValidAddress(msg.NodeAddress) {
+		return nil, fmt.Errorf("invalid node_address format")
+	}
+	if msg.ComputeUnits == 0 {
+		return nil, types.ErrInvalidComputeUnits
+	}
+	// SECURITY: Maximum compute units check
+	if msg.ComputeUnits > MaxComputeUnits {
+		return nil, fmt.Errorf("compute_units exceeds maximum (%d)", MaxComputeUnits)
+	}
+	if msg.ExecutionTime < 0 {
+		return nil, fmt.Errorf("execution_time cannot be negative")
+	}
+
+	// SECURITY: Signature verification (placeholder - implement with actual crypto)
+	// TODO: Implement proper Ed25519 signature verification
+	// if !k.VerifySignature(msg.NodeAddress, msg.JobID, msg.OutputHash, msg.Signature) {
+	//     return nil, fmt.Errorf("invalid signature")
+	// }
+	// For now, require signature to be non-empty
+	if len(msg.Signature) == 0 {
+		return nil, fmt.Errorf("signature is required")
+	}
+
 	// Get job
 	job, found := k.GetJob(msg.JobID)
 	if !found {
@@ -117,11 +170,6 @@ func (k Keeper) SubmitProof(msg MsgSubmitProof, blockHeight int64) (*MsgSubmitPr
 		return nil, types.ErrJobNotRunning
 	}
 
-	// Validate compute units
-	if msg.ComputeUnits == 0 {
-		return nil, types.ErrInvalidComputeUnits
-	}
-
 	// Calculate reward
 	// Formula: DPC = 0.001 × Complexity × ComputeUnits
 	reward := k.CalculateReward(msg.ComputeUnits, job.Complexity)
@@ -133,7 +181,8 @@ func (k Keeper) SubmitProof(msg MsgSubmitProof, blockHeight int64) (*MsgSubmitPr
 	maxSupply := parseUint64(params.MaxSupply)
 	currentSupplyUint := parseUint64(currentSupply)
 
-	if currentSupplyUint+rewardUint > maxSupply {
+	// SECURITY: Overflow check for supply
+	if currentSupplyUint > maxSupply-rewardUint {
 		// Cap reward to remaining supply
 		remaining := maxSupply - currentSupplyUint
 		reward = fmt.Sprintf("%d", remaining)
@@ -219,8 +268,23 @@ func (k Keeper) CancelJob(msg MsgCancelJob) (*MsgCancelJobResponse, error) {
 	}, nil
 }
 
-// ClaimReward handles reward claiming
+// ClaimReward handles reward claiming with reentrancy protection
 func (k Keeper) ClaimReward(msg MsgClaimReward) (*MsgClaimRewardResponse, error) {
+	// SECURITY: Input validation
+	if msg.NodeAddress == "" {
+		return nil, fmt.Errorf("node_address cannot be empty")
+	}
+	if !isValidAddress(msg.NodeAddress) {
+		return nil, fmt.Errorf("invalid node_address format")
+	}
+
+	// SECURITY: Reentrancy guard
+	if reentrancyGuard[msg.NodeAddress] {
+		return nil, fmt.Errorf("claim already in progress for this address")
+	}
+	reentrancyGuard[msg.NodeAddress] = true
+	defer func() { delete(reentrancyGuard, msg.NodeAddress) }()
+
 	// Get pending reward
 	reward, found := k.GetPendingReward(msg.NodeAddress)
 	if !found || reward.Amount == "0" {
@@ -286,4 +350,35 @@ func formatDPC(amount string) string {
 	}
 	dpc := float64(val) / 1e18
 	return fmt.Sprintf("%.6f", dpc)
+}
+
+// isValidAddress validates a DPC address format (bech32 with dpc prefix)
+func isValidAddress(address string) bool {
+	// Basic bech32 validation: starts with dpc1 and has reasonable length
+	if len(address) < 10 || len(address) > 100 {
+		return false
+	}
+	if !strings.HasPrefix(address, "dpc1") {
+		return false
+	}
+	// Check that remaining characters are valid bech32
+	for _, c := range address[4:] {
+		if !((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) {
+			return false
+		}
+	}
+	return true
+}
+
+// parseUint64Safe safely parses a string to uint64
+func parseUint64Safe(s string) uint64 {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0
+	}
+	val, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		return 0
+	}
+	return val
 }

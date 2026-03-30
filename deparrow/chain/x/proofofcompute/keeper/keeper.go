@@ -253,9 +253,15 @@ func (k Keeper) AddPendingReward(nodeAddress, rewardAmount string) error {
 		}
 	}
 
-	// Add amounts (string to uint addition)
+	// Add amounts (string to uint addition) with overflow check
 	currentAmount := parseUint64(reward.Amount)
 	addAmount := parseUint64(rewardAmount)
+	
+	// SECURITY: Check for integer overflow
+	if addAmount > 0 && currentAmount > (1<<63-1)-addAmount {
+		return fmt.Errorf("reward overflow: amount too large")
+	}
+	
 	newAmount := currentAmount + addAmount
 
 	reward.Amount = fmt.Sprintf("%d", newAmount)
