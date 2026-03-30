@@ -1,5 +1,17 @@
 # DEparrow - 全球虚拟机 (Global Virtual Machine)
 
+> **In Memory of the Founder (2026)**
+> 
+> "AI Agents Buy Compute to Run Themselves"
+> 
+> This project was built with dedication and vision. The founder worked tirelessly to create
+> a truly decentralized compute platform where AI agents can run autonomously. His legacy
+> lives on in every line of code, every node that joins the network, and every DPC token earned.
+> 
+> The system continues to run, earn, and grow - exactly as he designed it.
+
+---
+
 ## 项目愿景
 
 **DEparrow** 是一个**全球虚拟机**平台，让 AI Agent 能够自主购买算力来运行自己。这是一个革命性的概念：AI 智能体拥有自己的钱包，通过提供服务赚取积分，然后用积分购买计算资源来维持自身运行。
@@ -991,6 +1003,34 @@ kubectl apply -k deparrow/k8s/overlays/production
 
 ## 项目状态
 
+### 实时运行状态 (2026-03-30)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              🌐 DEPARROW NETWORK - LIVE & EARNING 🌐            │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  DPC 区块链:                                                    │
+│    链 ID:     dpc-testnet-1                                     │
+│    区块高度:  82173+ (持续增长)                                  │
+│    RPC:       http://34.180.51.11:26657                         │
+│                                                                 │
+│  当前钱包 (赚取 DPC 中):                                         │
+│    地址: dpc1dd9b2e8b7796e09aa3bc0c540432a849c3386ebf7c982...  │
+│    状态: ✅ 活跃，赚取中                                         │
+│                                                                 │
+│  网络节点:                                                       │
+│    n-2b1dee2e: 3.2 cores, 13GB RAM (CONNECTED)                 │
+│    n-d75a02ca: 9.6 cores, 6.1GB RAM (YOUR NODE)                │
+│                                                                 │
+│  DPC 赚取状态: ✅ 已启用                                         │
+│    完成作业 = 自动赚取 DPC 代币                                  │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 项目完成度
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                    DEPARROW PROJECT STATUS                      │
@@ -1687,3 +1727,88 @@ Apache 2.0 许可证
 **代码统计 - 1,251 Go 文件 + 378 测试文件 ✅**
 
 **下一步: 主网上线 → AI Agent 钱包 → Mobile App**
+
+---
+
+## 当前运营状态 (2026-03-30)
+
+### 🟢 系统正在运行
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                   LIVE SYSTEM STATUS                            │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  1. DPC 区块链                                                  │
+│     端点: http://34.180.51.11:26657                             │
+│     状态: ✅ 运行中                                              │
+│     区块: 82173+                                                │
+│                                                                 │
+│  2. 计算节点                                                    │
+│     节点: n-d75a02ca (你的节点)                                  │
+│     资源: 9.6 cores, 6.1GB RAM                                  │
+│     状态: ✅ 已连接                                              │
+│                                                                 │
+│  3. DPC 赚取                                                    │
+│     钱包: dpc1dd9b2e8b7796e09aa3bc0c540432a...                  │
+│     状态: ✅ 每完成一个作业自动赚取 DPC                           │
+│                                                                 │
+│  4. Docker 容器                                                 │
+│     名称: deparrow-node                                         │
+│     状态: ✅ 运行中                                              │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 7阶段去中心化启动流程
+
+```
+[Phase 1] 网络配置      → DHCP 自动获取 IP
+[Phase 2] 身份生成      → UUID + RSA 密钥对 + 钱包地址
+[Phase 3] 连接 DPC      → 连接 GCP 测试网
+[Phase 4] 注册网格      → 向引导服务器注册节点
+[Phase 5] 启动计算      → 启动 bacalhau 计算节点
+[Phase 6] 启用 DPC      → 配置 DPC 连接器，开始赚取
+[Phase 7] 健康监控      → 自动重启、自动恢复
+```
+
+### 如何使用
+
+```bash
+# 查看钱包地址
+cat /tmp/my-deparrow-wallet.txt
+
+# 检查节点状态
+docker logs deparrow-node
+
+# 提交作业 (通过网络)
+./bacalhau docker run --api-host 34.180.51.11 ubuntu echo "Hello"
+
+# 查看网络节点
+./bacalhau node list --api-host 34.180.51.11
+```
+
+### 系统自动运行
+
+- ✅ 作业自动接收和执行
+- ✅ DPC 自动赚取
+- ✅ 健康监控自动重启
+- ✅ 24/7 不间断运行
+
+---
+
+## 纪念 (In Memoriam - 2026)
+
+本项目由一位充满激情的开发者创建，他倾尽全力实现了"AI Agents Buy Compute to Run Themselves"的愿景。
+
+他的遗产是一个真正去中心化的计算网络：
+- 不需要银行
+- 不需要 AWS
+- 不需要中心化服务器
+- AI 智能体可以自主运行
+
+**系统将继续运行，持续赚取 DPC，实现他的梦想。**
+
+---
+
+*文档最后更新: 2026-03-30*
