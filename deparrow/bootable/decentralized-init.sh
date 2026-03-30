@@ -14,12 +14,12 @@
 export PATH=/bin:/sbin:/usr/bin:/usr/sbin
 export DEPARROW_CONFIG_DIR=/etc/deparrow
 export DEPARROW_VAR_DIR=/var/lib/deparrow
-export DPC_RPC="http://34.180.51.11:26657"
 export DPC_CHAIN_ID="dpc-testnet-1"
 
-# Network configuration
-BOOTSTRAP_ENDPOINT="${DEPARROW_BOOTSTRAP:-34.180.51.11:8080}"
-ORCHESTRATOR_PEERS="34.180.51.11:4222"
+# Network configuration - LOCAL MODE for QEMU (10.0.2.2 = host)
+DPC_RPC="${DEPARROW_DPC_RPC:-http://10.0.2.2:26657}"
+BOOTSTRAP_ENDPOINT="${DEPARROW_BOOTSTRAP:-10.0.2.2:8080}"
+ORCHESTRATOR_PEERS="${DEPARROW_ORCHESTRATOR:-10.0.2.2:4222}"
 
 # ============================================
 # PHASE 0: System Setup
@@ -98,16 +98,16 @@ for iface in /sys/class/net/*; do
     ip link set "$iface_name" up 2>/dev/null
 done
 
-# Try DHCP on all interfaces
+# Try DHCP on all interfaces (faster timeout)
 for iface in /sys/class/net/*; do
     iface_name=$(basename "$iface")
     [ "$iface_name" = "lo" ] && continue
-    udhcpc -i "$iface_name" -s /bin/dhcp-script.sh -T 2 -t 5 -n 2>/dev/null &
+    udhcpc -i "$iface_name" -s /bin/dhcp-script.sh -T 1 -t 3 -n 2>/dev/null &
 done
 
-# Wait for network
+# Wait for network (shorter timeout)
 WAIT=0
-while [ $WAIT -lt 20 ]; do
+while [ $WAIT -lt 10 ]; do
     ip route | grep -q "default" && break
     sleep 1
     WAIT=$((WAIT + 1))
@@ -115,10 +115,11 @@ done
 
 if ip route | grep -q "default"; then
     log "[Phase 1] ✓ Network connected!"
-    MY_IP=$(ip route get 1 | awk '{print $7; exit}')
+    MY_IP=$(ip route get 1 2>/dev/null | awk '{print $7; exit}' || echo "unknown")
     log "  IP: $MY_IP"
 else
-    log "[Phase 1] ✗ No network - standalone mode"
+    log "[Phase 1] ⚠ No network - continuing in standalone mode"
+    MY_IP="standalone"
 fi
 
 # ============================================
@@ -140,13 +141,19 @@ if [ ! -f "$DEPARROW_CONFIG_DIR/keys/node.pem" ]; then
     log "  Generating RSA keypair..."
     openssl genrsa -out "$DEPARROW_CONFIG_DIR/keys/node.pem" 2048 2>/dev/null
     openssl rsa -in "$DEPARROW_CONFIG_DIR/keys/node.pem" -pubout -out "$DEPARROW_CONFIG_DIR/keys/node.pub" 2>/dev/null
+    sleep 1
 fi
 
 # Generate wallet address (derived from public key)
 if [ ! -f "$DEPARROW_CONFIG_DIR/wallet-address" ]; then
     # Simplified address generation (in production, use proper crypto)
-    PUBKEY_HASH=$(cat "$DEPARROW_CONFIG_DIR/keys/node.pub" | sha256sum | head -c 40)
-    echo "dpc1${PUBKEY_HASH}" > "$DEPARROW_CONFIG_DIR/wallet-address"
+    if [ -f "$DEPARROW_CONFIG_DIR/keys/node.pub" ]; then
+        PUBKEY_HASH=$(cat "$DEPARROW_CONFIG_DIR/keys/node.pub" | sha256sum | head -c 40)
+        echo "dpc1${PUBKEY_HASH}" > "$DEPARROW_CONFIG_DIR/wallet-address"
+    else
+        # Fallback: random wallet
+        echo "dpc1$(head -c 40 /dev/urandom | xxd -p)" > "$DEPARROW_CONFIG_DIR/wallet-address"
+    fi
 fi
 WALLET_ADDRESS=$(cat "$DEPARROW_CONFIG_DIR/wallet-address")
 
@@ -188,13 +195,18 @@ log "[Phase 4/7] Registering with global mesh..."
 
 REGISTERED=0
 JWT_TOKEN=""
-ORCHESTRATOR_HOST="34.180.51.11"
+ORCHESTRATOR_HOST="10.0.2.2"
 ORCHESTRATOR_PORT="4222"
 
 # Try to register with bootstrap server
+PUBKEY_B64=""
+if [ -f "$DEPARROW_CONFIG_DIR/keys/node.pub" ]; then
+    PUBKEY_B64=$(cat "$DEPARROW_CONFIG_DIR/keys/node.pub" | base64 -w0 2>/dev/null)
+fi
+
 for proto in http https; do
     BOOTSTRAP_URL="${proto}://${BOOTSTRAP_ENDPOINT}"
-    
+
     REG_RESPONSE=$(wget -q -O - --timeout=10 \
         --header="Content-Type: application/json" \
         --post-data="{
@@ -205,7 +217,7 @@ for proto in http https; do
                 \"cpu\": $CPU_CORES,
                 \"memory\": \"${MEMORY_GB}GB\"
             },
-            \"public_key\": \"$(cat $DEPARROW_CONFIG_DIR/keys/node.pub | base64 -w0 2>/dev/null)\"
+            \"public_key\": \"$PUBKEY_B64\"
         }" \
         "${BOOTSTRAP_URL}/api/v1/nodes/register" 2>/dev/null)
     
@@ -213,7 +225,7 @@ for proto in http https; do
         REGISTERED=1
         JWT_TOKEN=$(echo "$REG_RESPONSE" | sed -n 's/.*"token"[[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
         ORCHESTRATOR_HOST=$(echo "$REG_RESPONSE" | sed -n 's/.*"orchestrator_host"[[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-        [ -z "$ORCHESTRATOR_HOST" ] && ORCHESTRATOR_HOST="34.180.51.11"
+        [ -z "$ORCHESTRATOR_HOST" ] && ORCHESTRATOR_HOST="10.0.2.2"
         ORCHESTRATOR_PORT=$(echo "$REG_RESPONSE" | sed -n 's/.*"orchestrator_port"[[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p')
         [ -z "$ORCHESTRATOR_PORT" ] && ORCHESTRATOR_PORT="4222"
         
@@ -273,7 +285,7 @@ mkdir -p /var/lib/deparrow
 
 # Start Bacalhau compute node
 log "  Starting bacalhau compute node..."
-deparrow serve --compute \
+/bin/deparrow serve --compute \
     --config Compute.Orchestrators="nats://${ORCHESTRATOR_HOST}:${ORCHESTRATOR_PORT}" \
     --config node.type=compute \
     --config node.labels.deparrow=true \
@@ -326,7 +338,7 @@ while true; do
     # Check compute node
     if ! kill -0 $BACALHAU_PID 2>/dev/null; then
         log "[Health] Compute node down, restarting..."
-        deparrow serve --compute \
+        /bin/deparrow serve --compute \
             --config Compute.Orchestrators="nats://${ORCHESTRATOR_HOST}:${ORCHESTRATOR_PORT}" \
             > /var/log/bacalhau.log 2>&1 &
         BACALHAU_PID=$!

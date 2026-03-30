@@ -174,8 +174,12 @@ mkdir -p "$INITRAMFS_DIR/etc/deparrow/keys"
 cp "$BACALHAU_BIN" "$INITRAMFS_DIR/bin/bacalhau"
 chmod +x "$INITRAMFS_DIR/bin/bacalhau"
 
+# Copy deparrow wrapper
 cp "$DEPARROW_WRAPPER" "$INITRAMFS_DIR/bin/deparrow"
 chmod +x "$INITRAMFS_DIR/bin/deparrow"
+
+# Patch wrapper to use correct path in ISO
+sed -i 's|BACALHAU_BIN=.*|BACALHAU_BIN="/bin/bacalhau.real"|g' "$INITRAMFS_DIR/bin/deparrow"
 
 # Create symlink
 mv "$INITRAMFS_DIR/bin/bacalhau" "$INITRAMFS_DIR/bin/bacalhau.real"
