@@ -3,7 +3,6 @@ package dpc
 
 import (
 	"context"
-	"time"
 
 	"github.com/rs/zerolog/log"
 
@@ -33,7 +32,7 @@ func (h *WatcherHandler) Stop() {
 	h.integration.Stop()
 }
 
-// HandleEvent implements the watcher.Handler interface
+// HandleEvent implements the watcher.EventHandler interface
 // This is the main entry point for Bacalhau execution events
 func (h *WatcherHandler) HandleEvent(ctx context.Context, event watcher.Event) error {
 	// Extract the execution upsert from the event
@@ -47,9 +46,9 @@ func (h *WatcherHandler) HandleEvent(ctx context.Context, event watcher.Event) e
 	// Handle different execution states
 	switch execution.ComputeState.StateType {
 	case models.ExecutionStateCompleted:
-		return h.handleCompleted(ctx, execution)
+		return h.handleCompleted(ctx, *execution)
 	case models.ExecutionStateFailed:
-		return h.handleFailed(ctx, execution)
+		return h.handleFailed(ctx, *execution)
 	default:
 		return nil // Not a terminal state, skip
 	}
@@ -85,8 +84,8 @@ func (h *WatcherHandler) ClaimRewards(ctx context.Context) (string, error) {
 	return h.integration.ClaimRewards(ctx)
 }
 
-// Stats returns DPC integration statistics
-func (h *WatcherHandler) Stats() map[string]interface{} {
+// GetStats returns DPC integration statistics
+func (h *WatcherHandler) GetStats() map[string]interface{} {
 	return h.integration.Stats()
 }
 
@@ -96,4 +95,4 @@ func (h *WatcherHandler) GetIntegration() *Integration {
 }
 
 // Ensure WatcherHandler implements the necessary interface
-var _ watcher.Handler = (*WatcherHandler)(nil)
+var _ watcher.EventHandler = (*WatcherHandler)(nil)
