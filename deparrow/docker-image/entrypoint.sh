@@ -19,9 +19,14 @@ WRAPPER
     chmod +x /usr/local/bin/deparrow
 }
 
-# Setup wrapper on first run
-if [ ! -f /usr/local/bin/deparrow ]; then
+# Setup wrapper - handle container restarts properly
+# Check if bacalhau.real exists; if not but bacalhau does, move it
+if [ ! -f /usr/local/bin/bacalhau.real ] && [ -f /usr/local/bin/bacalhau ]; then
     mv /usr/local/bin/bacalhau /usr/local/bin/bacalhau.real
+fi
+
+# Always ensure wrapper exists (handles container restarts)
+if [ ! -f /usr/local/bin/deparrow ]; then
     create_wrapper
 fi
 

@@ -9,7 +9,7 @@
 #   - Earns DPC tokens for completed jobs
 #   - No centralized authority - pure P2P mesh
 #
-# Usage: ./build-decentralized-iso.sh [--wifi] [--local]
+# Usage: ./build-decentralized-iso.sh [--wifi]
 #
 
 set -e
@@ -24,7 +24,7 @@ VERSION="1.0.0-decentralized"
 
 # Build options
 ENABLE_WIFI=${ENABLE_WIFI:-false}
-LOCAL_MODE=${LOCAL_MODE:-false}
+
 
 # Build directories
 BUILD_DIR="/tmp/deparrow-decentralized-build-$$"
@@ -47,7 +47,6 @@ GCP_ORCHESTRATOR="34.180.51.11:4222"
 while [[ $# -gt 0 ]]; do
     case $1 in
         --wifi) ENABLE_WIFI=true; shift ;;
-        --local) LOCAL_MODE=true; shift ;;
         --help|-h)
             echo "DEparrow Decentralized ISO Builder v${VERSION}"
             echo ""
@@ -55,10 +54,11 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "Options:"
             echo "  --wifi    Include WiFi firmware"
-            echo "  --local   Build for QEMU testing"
             echo "  --help    Show this help"
             echo ""
             echo "Output: $OUTPUT_DIR/deparrow-decentralized-${VERSION}.iso"
+            echo ""
+            echo "Note: All nodes connect to production GCP network (34.180.51.11)"
             exit 0
             ;;
         *) echo "Unknown option: $1"; exit 1 ;;
@@ -219,14 +219,7 @@ echo "[Build] Installing decentralized init script..."
 cp "$SCRIPT_DIR/decentralized-init.sh" "$INITRAMFS_DIR/init"
 chmod 755 "$INITRAMFS_DIR/init"
 
-# Set environment variables
-if [ "$LOCAL_MODE" = "true" ]; then
-    sed -i 's|BOOTSTRAP_ENDPOINT="${DEPARROW_BOOTSTRAP:-34.180.51.11:8080}"|BOOTSTRAP_ENDPOINT="${DEPARROW_BOOTSTRAP:-10.0.2.2:8080}"|g' "$INITRAMFS_DIR/init"
-    sed -i 's|ORCHESTRATOR_PEERS="34.180.51.11:4222"|ORCHESTRATOR_PEERS="10.0.2.2:4222"|g' "$INITRAMFS_DIR/init"
-    sed -i 's|DPC_RPC="http://34.180.51.11:26657"|DPC_RPC="http://10.0.2.2:26657"|g' "$INITRAMFS_DIR/init"
-fi
-
-echo "  ✓ Decentralized init installed"
+echo "  ✓ Decentralized init installed (PRODUCTION mode - connects to GCP network)"
 
 # ============================================
 # Create DHCP Script
@@ -334,16 +327,10 @@ echo "  ✓ vmlinuz: $(ls -lh $BOOT_DIR/vmlinuz | awk '{print $5}')"
 # ============================================
 echo "[Build] Creating GRUB config..."
 
-# Set endpoints for GRUB
-if [ "$LOCAL_MODE" = "true" ]; then
-    GRUB_BOOTSTRAP="10.0.2.2:8080"
-    GRUB_ORCHESTRATOR="10.0.2.2:4222"
-    GRUB_DPC="10.0.2.2:26657"
-else
-    GRUB_BOOTSTRAP="34.180.51.11:8080"
-    GRUB_ORCHESTRATOR="34.180.51.11:4222"
-    GRUB_DPC="34.180.51.11:26657"
-fi
+# Production GCP endpoints (always)
+GRUB_BOOTSTRAP="34.180.51.11:8080"
+GRUB_ORCHESTRATOR="34.180.51.11:4222"
+GRUB_DPC="34.180.51.11:26657"
 
 cat > "$ISO_DIR/boot/grub/grub.cfg" << GRUBEOF
 set default=0

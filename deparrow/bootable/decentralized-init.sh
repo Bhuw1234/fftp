@@ -16,10 +16,10 @@ export DEPARROW_CONFIG_DIR=/etc/deparrow
 export DEPARROW_VAR_DIR=/var/lib/deparrow
 export DPC_CHAIN_ID="dpc-testnet-1"
 
-# Network configuration - LOCAL MODE for QEMU (10.0.2.2 = host)
-DPC_RPC="${DEPARROW_DPC_RPC:-http://10.0.2.2:26657}"
-BOOTSTRAP_ENDPOINT="${DEPARROW_BOOTSTRAP:-10.0.2.2:8080}"
-ORCHESTRATOR_PEERS="${DEPARROW_ORCHESTRATOR:-10.0.2.2:4222}"
+# Network configuration - GCP PRODUCTION ENDPOINTS
+DPC_RPC="${DEPARROW_DPC_RPC:-http://34.180.51.11:26657}"
+BOOTSTRAP_ENDPOINT="${DEPARROW_BOOTSTRAP:-34.180.51.11:8080}"
+ORCHESTRATOR_PEERS="${DEPARROW_ORCHESTRATOR:-34.180.51.11:4222}"
 
 # ============================================
 # PHASE 0: System Setup
@@ -42,6 +42,7 @@ parse_cmdline() {
     for param in $(cat /proc/cmdline); do
         case "$param" in
             deparrow.bootstrap=*) BOOTSTRAP_ENDPOINT="${param#*=}" ;;
+            deparrow.dpc_rpc=*) DPC_RPC="${param#*=}" ;;
             deparrow.name=*) NODE_NAME="${param#*=}" ;;
             wifi.ssid=*) WIFI_SSID="${param#*=}" ;;
             wifi.password=*) WIFI_PASSWORD="${param#*=}" ;;
@@ -195,7 +196,7 @@ log "[Phase 4/7] Registering with global mesh..."
 
 REGISTERED=0
 JWT_TOKEN=""
-ORCHESTRATOR_HOST="10.0.2.2"
+ORCHESTRATOR_HOST="34.180.51.11"
 ORCHESTRATOR_PORT="4222"
 
 # Try to register with bootstrap server
@@ -225,7 +226,7 @@ for proto in http https; do
         REGISTERED=1
         JWT_TOKEN=$(echo "$REG_RESPONSE" | sed -n 's/.*"token"[[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
         ORCHESTRATOR_HOST=$(echo "$REG_RESPONSE" | sed -n 's/.*"orchestrator_host"[[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-        [ -z "$ORCHESTRATOR_HOST" ] && ORCHESTRATOR_HOST="10.0.2.2"
+        [ -z "$ORCHESTRATOR_HOST" ] && ORCHESTRATOR_HOST="34.180.51.11"
         ORCHESTRATOR_PORT=$(echo "$REG_RESPONSE" | sed -n 's/.*"orchestrator_port"[[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p')
         [ -z "$ORCHESTRATOR_PORT" ] && ORCHESTRATOR_PORT="4222"
         
@@ -292,6 +293,7 @@ log "  Starting bacalhau compute node..."
     > /var/log/bacalhau.log 2>&1 &
 
 BACALHAU_PID=$!
+echo "$BACALHAU_PID" > /var/run/bacalhau.pid
 sleep 3
 
 if kill -0 $BACALHAU_PID 2>/dev/null; then
@@ -335,23 +337,27 @@ cat > /bin/deparrow-health << HEALTHEOF
 while true; do
     sleep 60
     
+    # Read PID from file
+    BACALHAU_PID=$(cat /var/run/bacalhau.pid 2>/dev/null)
+    
     # Check compute node
-    if ! kill -0 $BACALHAU_PID 2>/dev/null; then
-        log "[Health] Compute node down, restarting..."
+    if [ -z "$BACALHAU_PID" ] || ! kill -0 $BACALHAU_PID 2>/dev/null; then
+        echo "[Health] Compute node down, restarting..."
         /bin/deparrow serve --compute \
             --config Compute.Orchestrators="nats://${ORCHESTRATOR_HOST}:${ORCHESTRATOR_PORT}" \
             > /var/log/bacalhau.log 2>&1 &
-        BACALHAU_PID=$!
+        NEW_PID=$!
+        echo "$NEW_PID" > /var/run/bacalhau.pid
     fi
     
     # Check DPC connectivity
-    if ! wget -q -O /dev/null --timeout=5 "$DPC_RPC/health" 2>/dev/null; then
-        log "[Health] DPC testnet unreachable"
+    if ! wget -q -O /dev/null --timeout=5 "${DPC_RPC}/health" 2>/dev/null; then
+        echo "[Health] DPC testnet unreachable"
     fi
     
     # Check orchestrator
     if ! nc -z "$ORCHESTRATOR_HOST" "$ORCHESTRATOR_PORT" 2>/dev/null; then
-        log "[Health] Orchestrator unreachable"
+        echo "[Health] Orchestrator unreachable"
     fi
 done
 HEALTHEOF

@@ -115,13 +115,13 @@
 | ISO 文件 | 大小 | 说明 |
 |----------|------|------|
 | `deparrow-1.0.0.iso` | 27MB | 精简版，仅 EFI 启动 |
-| `deparrow-alpine.iso` | 48MB | Alpine Linux 完整版 |
+| `deparrow-alpine.iso` | 47MB | Alpine Linux 完整版 |
 | `deparrow-autojoin.iso` | 94MB | 6阶段自动加入网络 |
-| `deparrow-autojoin-local.iso` | 73MB | 本地测试版 (QEMU) |
+| `deparrow-autojoin-local.iso` | 72MB | 本地测试版 (QEMU) |
 | `deparrow-hybrid.iso` | 107MB | BIOS + EFI 双启动 |
 | `deparrow-os-1.0.0.iso` | 78MB | DEparrow 品牌版 |
 | `deparrow-decentralized-1.0.0.iso` | 78MB | **🌐 去中心化版 (推荐)** |
-| **总计** | **~505MB** | 7 个 ISO 文件 |
+| **总计** | **~503MB** | 7 个 ISO 文件 |
 
 **当前引导服务器:** `34.180.51.11:8080` (GCP 运行中)
 
@@ -1003,7 +1003,7 @@ kubectl apply -k deparrow/k8s/overlays/production
 
 ## 项目状态
 
-### 实时运行状态 (2026-03-30)
+### 实时运行状态 (2026-04-01)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -1012,7 +1012,7 @@ kubectl apply -k deparrow/k8s/overlays/production
 │                                                                 │
 │  DPC 区块链:                                                    │
 │    链 ID:     dpc-testnet-1                                     │
-│    区块高度:  82173+ (持续增长)                                  │
+│    区块高度:  239098+ (持续增长)                                 │
 │    RPC:       http://34.180.51.11:26657                         │
 │                                                                 │
 │  当前钱包 (赚取 DPC 中):                                         │
@@ -1080,14 +1080,14 @@ MOBILE APP: 0% ░░░░░░░░░░░░░░░░░░░░
 └── Embedded Compute         0% ░░░░░░░░░░░░░░░░░░░░
 ```
 
-### GCP 部署状态 (2026-03-30) ✅ TESTNET LIVE
+### GCP 部署状态 (2026-04-01) ✅ TESTNET LIVE
 
 | 组件 | 状态 | 端点 |
 |------|------|------|
 | **DPC Testnet** | ✅ 运行中 | http://34.180.51.11:26657 |
 | **Bootstrap Server** | ✅ 运行中 | http://34.180.51.11:8080 |
 | **Bacalhau API** | ✅ 运行中 | http://34.180.51.11:1234 |
-| **Block Height** | 2412+ | 生产新区块中 |
+| **Block Height** | 239098+ | 生产新区块中 |
 | **Chain ID** | dpc-testnet-1 | ✅ |
 | **Consensus** | CometBFT v0.38.17 | ✅ |
 
@@ -1134,7 +1134,7 @@ BACALHAU_API_HOST=34.180.51.11 ./bacalhau node list
 | - GCP Deployment | ✅ | 34.180.51.11:26657 |
 | - State Persistence | ✅ | BadgerDB 存储 |
 | - Multi-Node P2P | ✅ | 节点发现+区块同步 |
-| **ISO 镜像** | ✅ 完成 | 6 files (27-107MB, 总计 ~427MB) |
+| **ISO 镜像** | ✅ 完成 | 7 files (27-107MB, 总计 ~503MB) |
 | **零风险品牌化** | ✅ 完成 | CLI + Docker image |
 | **Global VM** | ✅ 完成 | 5 phases, 12 Go files |
 
@@ -1179,13 +1179,13 @@ cd deparrow/bootable
 ./build-deparrow-iso.sh --local   # QEMU 测试版 (连接 10.0.2.2:8080)
 ```
 
-### 代码统计 (2026-03-30 更新)
+### 代码统计 (2026-04-01 更新)
 
 | 组件 | 文件数 | 测试文件 | 说明 |
 |------|--------|----------|------|
 | **Go 文件总数** | **1,251** | 378 | 包含所有模块 |
-| pkg/ (核心库) | ~941 | ~288 | Go 核心模块 (40 子目录) |
-| WebUI | 86 TS/TSX | 7 | Next.js 15 + React 组件 |
+| pkg/ (核心库) | ~945 | ~288 | Go 核心模块 (40 子目录) |
+| WebUI | 71 TSX | 7 | Next.js 15 + React 组件 |
 | PicoClaw DEparrow | 14 | 7 | 87%+ 覆盖率 |
 | pkg/globalvm | 12 | 6 | Global VM 实现 |
 | DPC Chain | 25 Go + 4 proto | - | 3 Cosmos SDK 模块 |
@@ -1194,7 +1194,7 @@ cd deparrow/bootable
 | K8s Manifests | 22 | - | base/*.yaml |
 | Python Tests | - | 91 | 完整覆盖 |
 | GRUB BIOS 模块 | 304 | - | i386-pc/ |
-| ISO 输出 | 6 | - | 27MB ~ 107MB (总计 ~427MB) |
+| ISO 输出 | 7 | - | 27MB ~ 107MB (总计 ~503MB) |
 | bin/deparrow | 1 | - | CLI 包装器 (零风险) |
 
 ### 核心文件清单
@@ -1217,20 +1217,25 @@ deparrow/gui-layer/src/pages/
 
 deparrow/bootable/
 ├── build-deparrow-iso.sh  # DEparrow 品牌版 ISO (推荐)
+├── build-decentralized-iso.sh  # 去中心化版 ISO
 ├── build-iso-v2.sh        # Auto-Join ISO
 ├── build-hybrid-iso.sh    # BIOS+EFI 混合 ISO
 ├── build-iso-fixed.sh     # 修复版 ISO
 ├── build-iso.sh           # 基础 ISO
 ├── create-iso.sh          # ISO 创建脚本
 ├── auto-install.sh        # 自动安装脚本
+├── decentralized-init.sh  # 去中心化启动脚本
 ├── deparrow-banner.txt    # DEparrow ASCII 横幅
 ├── alpine-minirootfs-3.20.0-x86_64.tar.gz  # Alpine 基础
 ├── i386-pc/               # GRUB BIOS 模块 (304 文件)
 └── output/
     ├── deparrow-os-1.0.0.iso     (78MB)  # 品牌版 (推荐)
+    ├── deparrow-decentralized-1.0.0.iso (78MB)  # 去中心化版
     ├── deparrow-hybrid.iso       (107MB)
     ├── deparrow-autojoin.iso     (94MB)
-    └── deparrow-alpine.iso       (48MB)
+    ├── deparrow-autojoin-local.iso (72MB)
+    ├── deparrow-alpine.iso       (47MB)
+    └── deparrow-1.0.0.iso        (27MB)  # 精简版
 
 deparrow/docs/
 ├── DPC-TOKEN-DESIGN.md        # DPC 代币设计文档
@@ -1694,7 +1699,7 @@ Apache 2.0 许可证
 
 ---
 
-*文档最后更新: 2026-03-30 (基于最新提交 608b2d650)*
+*文档最后更新: 2026-04-01 (基于最新提交 3400d7788)*
 
 ---
 
@@ -1702,7 +1707,7 @@ Apache 2.0 许可证
 
 **DPC 测试网 LIVE - http://34.180.51.11:26657 ✅**
 
-**CometBFT 共识运行中 - Block Height 2412+ ✅**
+**CometBFT 共识运行中 - Block Height 239098+ ✅**
 
 **GCP 部署完成 - 34.180.51.11 ✅**
 
@@ -1722,7 +1727,7 @@ Apache 2.0 许可证
 
 **零风险品牌化完成 - 无 Go 代码修改 ✅**
 
-**ISO 镜像就绪 - 6 个 ISO (总计 ~427MB) ✅**
+**ISO 镜像就绪 - 7 个 ISO (总计 ~503MB) ✅**
 
 **代码统计 - 1,251 Go 文件 + 378 测试文件 ✅**
 
@@ -1730,7 +1735,7 @@ Apache 2.0 许可证
 
 ---
 
-## 当前运营状态 (2026-03-30)
+## 当前运营状态 (2026-04-01)
 
 ### 🟢 系统正在运行
 
@@ -1742,7 +1747,7 @@ Apache 2.0 许可证
 │  1. DPC 区块链                                                  │
 │     端点: http://34.180.51.11:26657                             │
 │     状态: ✅ 运行中                                              │
-│     区块: 82173+                                                │
+│     区块: 239098+                                               │
 │                                                                 │
 │  2. 计算节点                                                    │
 │     节点: n-d75a02ca (你的节点)                                  │
@@ -1811,4 +1816,4 @@ docker logs deparrow-node
 
 ---
 
-*文档最后更新: 2026-03-30*
+*文档最后更新: 2026-04-01*
